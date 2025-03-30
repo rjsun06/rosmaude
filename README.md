@@ -18,7 +18,7 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 - **ROS2 jazzy** installed and sourced.  
 - **Python 3.12+** with `rclpy` and `maude`.  
 
-## try this out 
+## Running the Demo 
 1. Clone this repository:  
    ```bash  
    git https://github.com/rjsun06/rosmaude
@@ -26,3 +26,16 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 2.
    ```bash
    python3 rosmaude.py \[--simulation\] test_ros.maude
+
+
+Key Files
+- ros_external.maude: Maude module for ROS2 interaction.
+- ros_logical.maude:	Pure Maude simulation of ROS2.
+- rosmaude.py	Bridge: script (Maude ↔ ROS2).
+- test_ros.maude: Example Maude configuration.
+- msgType.py:	Message type translation utilities.
+
+Supported Message Types
+|Maude Type	| ROS2 Type |
+| - | - |
+|String	| std_msgs.msg.String |
