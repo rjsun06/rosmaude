@@ -15,7 +15,7 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 - Simulation mode for testing without ROS2.  
 
 ## enviroment  
-- **ROS2 jazzy** (or newer) installed and sourced.  
+- **ROS2 jazzy** installed and sourced.  
 - **Python 3.12+** with `rclpy` and `maude`.  
 
 ## try this out 
