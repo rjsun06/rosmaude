@@ -1,0 +1,68 @@
+load ros .
+
+omod ROS2-External is
+    pr CONVERSION .
+    ex ROS2-base .
+
+    op publisher : Nat -> Oid .
+    op subscription : Nat -> Oid .
+    op service : Nat -> Oid .
+
+
+
+    class ROS2Portal .
+
+    op <ROS2-INITed> : -> Object .
+    eq <ROS2-INITed> = < ROS2 : ROS2Portal | > .
+
+    op <ROS2-INIT> : -> Object 
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook publisher (publisher : Nat ~> Oid)
+            op-hook subscription (subscription : Nat ~> Oid)
+            op-hook service (service : Nat ~> Oid)
+            op-hook inited (<ROS2-INITed> : ~> Object)
+    )].
+
+    op %createPublisher : Oid Oid ROS2-DataType String Int -> Msg 
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook createdPublisher (createdPublisher : Oid Oid Oid ~> Msg)
+    )].
+
+    op %publish : Oid Oid Data -> Msg 
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook published (published : Oid Oid ~> Msg)
+    )].
+
+    op %createSubscription : Oid Oid ROS2-DataType String Int -> Msg 
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook createdSubscription (createdSubscription : Oid Oid Oid ~> Msg)
+    )].
+
+    op %recieve : Oid Oid -> Msg 
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook recieved (recieved : Oid Oid Data ~> Msg)
+    )].
+
+    rl <ROS2> => <ROS2-INIT> .
+    rl < ROS2 : ROS2Portal | > createPublisher(ROS2,a2:Oid,a3:ROS2-DataType,a4:String,a5:Int)
+    => < ROS2 : ROS2Portal | > %createPublisher(ROS2,a2:Oid,a3:ROS2-DataType,a4:String,a5:Int) .
+
+    rl < ROS2 : ROS2Portal | > publish(a1:Oid,a2:Oid,a3:Data)
+    => < ROS2 : ROS2Portal | > %publish(a1:Oid,a2:Oid,a3:Data) .
+
+    rl < ROS2 : ROS2Portal | > createSubscription(ROS2,a2:Oid,a3:ROS2-DataType,a4:String,a5:Int)
+    => < ROS2 : ROS2Portal | > %createSubscription(ROS2,a2:Oid,a3:ROS2-DataType,a4:String,a5:Int) .
+    rl < ROS2 : ROS2Portal | > recieve(a1:Oid,a2:Oid)
+    => < ROS2 : ROS2Portal | > %recieve(a1:Oid,a2:Oid) .
+
+endom
+
+
+omod ROS2 is
+    ex ROS2-External .
+endom

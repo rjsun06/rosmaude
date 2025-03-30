@@ -1,0 +1,73 @@
+load ros .
+
+omod test-ros is
+    pr ROS2 .
+    pr STRING .
+    pr LIST{String} .
+
+
+    class Talker | publisher : [Oid], words : List{String} .
+    class Listener | subscription : [Oid], got : List{String} .
+
+    op na : -> [Oid] .
+
+    ops t a1 a2 : -> Oid .
+    op init : -> Configuration .
+
+    eq init = 
+        <ROS2>
+        < t : Talker | publisher : na, words : "HI" "Im T" "Hello World" "<DONE>" >
+        < a1 : Listener | subscription : na, got : nil >
+        < a2 : Listener | subscription : na, got : nil >
+        createPublisher(ROS2,t,str,"/speech",3)
+        createSubscription(ROS2,a1,str,"/speech",5)
+        createSubscription(ROS2,a2,str,"/speech",5)
+    .
+
+    var ME NEW O FROM : Oid .
+    var WORDS : List{String} .
+    var STR : String .
+
+    rl [initTalker] :
+        < ME : Talker | publisher : na, words : STR WORDS >
+        createdPublisher(ME, ROS2, NEW)
+    =>
+        < ME : Talker | publisher : NEW, words : WORDS >
+        publish(NEW,ME,[STR])
+    .
+
+    rl [talk] :
+        < ME : Talker | publisher : O, words : STR WORDS >
+        published(ME,O)
+    =>
+        < ME : Talker | publisher : O, words : WORDS >
+        publish(O,ME,[STR])
+    .
+
+    rl [talk] :
+        < ME : Talker | publisher : O, words : nil >
+        published(ME,O)
+    =>
+        < ME : Talker | publisher : O, words : nil >
+    .
+
+    rl [initListener] :
+        < ME : Listener | subscription : na >
+        createdSubscription(ME, ROS2, NEW)
+    =>
+        < ME : Listener | subscription : NEW >
+        recieve(NEW, ME)
+    .    
+
+    rl [initListener] :
+        < ME : Listener | got : WORDS >
+        recieved(ME, FROM, [STR])
+    =>
+        if STR == "<DONE>" then
+            < ME : Listener | got : WORDS >
+        else
+            < ME : Listener | got : WORDS STR >
+            recieve(FROM, ME)
+        fi
+    .    
+endom

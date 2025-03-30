@@ -1,0 +1,65 @@
+fmod ROS2-TYPES is
+    sort ROS2-DataType .
+    sort ROS2-ServiceType .
+    op nulltype : -> ROS2-DataType .
+    op str : -> ROS2-DataType .
+    op int : -> ROS2-DataType .
+endfm
+
+fmod ROS2-DATA is
+    pr CONVERSION .
+    pr ROS2-TYPES .
+    sort Data .
+    op [_] : Int -> Data .
+    op [_] : String -> Data .
+    op null : -> Data .
+    op typeof : Data -> ROS2-DataType .
+    eq typeof(null) = nulltype .
+    eq typeof([x:Int]) = int .
+    eq typeof([x:String]) = str .
+endfm
+
+view Oid from TRIV to CONFIGURATION is
+    sort Elt to Oid .
+endv
+
+view Data from TRIV to ROS2-DATA is
+    sort Elt to Data .
+endv
+
+omod ROS2-base is
+    pr CONVERSION .
+    pr ROS2-TYPES .
+    pr ROS2-DATA .
+
+    sort Iid .
+
+    sort Ros2Msg .
+    subsort Ros2Msg < Msg .
+    msg createPublisher : Oid Oid ROS2-DataType String Int -> Ros2Msg .
+    msg createdPublisher : Oid Oid Oid -> Ros2Msg .
+    msg publish : Oid Oid Data -> Ros2Msg .
+    msg published : Oid Oid ->  Ros2Msg .
+
+    msg createSubscription : Oid Oid ROS2-DataType String Int -> Ros2Msg .
+    msg createdSubscription : Oid Oid Oid -> Ros2Msg .
+    msg recieve : Oid Oid -> Ros2Msg .
+    msg recieved : Oid Oid Data -> Ros2Msg .
+
+    msg createService : Oid Oid ROS2-ServiceType String -> Ros2Msg .
+    msg createdService : Oid Oid Oid -> Ros2Msg .
+    msg recieve : Oid Oid -> Ros2Msg .
+    msg recieved : Oid Oid Iid Data -> Ros2Msg .
+    msg respond : Oid Oid Iid Data -> Ros2Msg .
+
+    op ros2Processing : Ros2Msg -> [Msg] .
+    op ros2Error : Ros2Msg -> [Msg] .
+    
+    op <ROS2> : -> Object .
+    op ROS2 : -> Oid .
+endom
+
+
+omod ROS2 is
+    ex ROS2-base .
+endom
