@@ -25,7 +25,7 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
    cd rosmaude
 2.
    ```bash
-   python3 rosmaude.py \[--simulation\] test_ros.maude
+   python3 rosmaude.py [--simulation] test_ros.maude
 
 
 Key Files
