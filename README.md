@@ -1,4 +1,4 @@
-# ROS-Maude Bridge  
+# ROS2-Maude Bridge  
 **Bridge ROS2 and Maude for formal verification and simulation of robotic systems.**  
 
 ## Overview  
