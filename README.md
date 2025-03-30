@@ -29,9 +29,9 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 
 
 Key Files
-- `ros_external.maude`: Maude module for ROS2 interaction.
-- `ros_logical.maude`:	Pure Maude simulation of ROS2.
-- `rosmaude.py`: Bridge script (Maude ↔ ROS2).
+- `ros_external.maude`: run rosmaude nodes on ros2, allow communication with non-maude ros nodes.
+- `ros_logical.maude`: Pure Maude simulation for rosmaude nodes only.
+- `rosmaude.py`: Bridge script implementing special hooks in `ros_external.maude` with `rclpy`.
 - `test_ros.maude`: Example Maude configuration.
 - `msgType.py`:	Message type translation utilities.
 
