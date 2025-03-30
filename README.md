@@ -11,7 +11,7 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 - Dual-layer architecture:  
   - **External Layer**: `ros_external.maude` connects to ROS2 via `rosmaude.py`.  
   - **Logical Layer**: `ros_logical.maude` simulates ROS2 behavior in pure Maude.  
-- Message type translation (currently `str` ↔ `std_msgs.msg.String`).  
+- Message type translation (currently only `str`(contructable from maude String) ↔ `std_msgs.msg.String`).  
 - Simulation mode for testing without ROS2.  
 
 ## enviroment  
