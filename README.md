@@ -29,11 +29,11 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
 
 
 Key Files
-- ros_external.maude: Maude module for ROS2 interaction.
-- ros_logical.maude:	Pure Maude simulation of ROS2.
-- rosmaude.py	Bridge: script (Maude ↔ ROS2).
-- test_ros.maude: Example Maude configuration.
-- msgType.py:	Message type translation utilities.
+- `ros_external.maude`: Maude module for ROS2 interaction.
+- `ros_logical.maude`:	Pure Maude simulation of ROS2.
+- `rosmaude.py`: Bridge script (Maude ↔ ROS2).
+- `test_ros.maude`: Example Maude configuration.
+- `msgType.py`:	Message type translation utilities.
 
 Supported Message Types
 |Maude Type	| ROS2 Type |
