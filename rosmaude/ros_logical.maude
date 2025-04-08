@@ -1,0 +1,133 @@
+load ros_base .
+
+view Oid from TRIV to CONFIGURATION is
+    sort Elt to Oid .
+endv
+
+view Data from TRIV to ROS2-BASE is 
+    sort Elt to Data .
+endv
+
+view RawTRIV from TRIV to RAW is
+    sort Elt to Raw .
+endv
+
+fmod MAYBE{X :: TRIV} is
+    sort Maybe{X} .
+    subsort X$Elt < Maybe{X} .
+    op null : -> Maybe{X} .
+endfm
+
+omod ROS2-Logical is
+    pr RAW .
+    ex ROS2-BASE .
+    pr LIST{Oid} * (op nil to noOid) .
+    pr LIST{Data} * (op nil to noData) .
+    pr LIST{RawTRIV} * (op nil to noRaw) .
+    pr MAYBE{RawTRIV} .
+
+    op <ROS2-Logical> : -> Object .
+
+    class ROS2Portal | publisherCount : Int, subscriptionCount : Int .
+    class Publisher | topic : String, dataType : MsgType, node : Oid, subscriptions : List{Oid}, queue : List{RawTRIV}, size : Int, subscriptionsLeft : List{Oid}, publishingData : Maybe{RawTRIV} .
+    class Subscription | topic : String, dataType : MsgType, node : Oid, queue : List{Data}, size : Int .
+
+
+    msg send : Oid Oid Raw -> Msg .
+
+    var NAME : String .
+    var SIZE COUNT : Int .
+    vars ME TO FROM SUB : Oid .
+    var DT : MsgType .
+    vars DATA : Data .
+    vars RAW : Raw .
+    var B : List{Data} .
+    var RB : List{RawTRIV} .
+    vars SUBS SUBSLEFT : List{Oid} .
+
+    rl [initialize] :
+        <ROS2-Logical>
+    =>
+        < ROS2 : ROS2Portal | publisherCount : 0, subscriptionCount : 0 >
+    .
+
+    rl [createPublisher] :
+        < ROS2 : ROS2Portal | publisherCount : COUNT >
+        createPublisher(ROS2,FROM,DT,NAME,SIZE)
+    =>   
+        < ROS2 : ROS2Portal | publisherCount : s(COUNT) >
+        < publisher(COUNT,DT) : Publisher | topic : NAME, dataType : DT, node : FROM, subscriptions : noOid, queue : noRaw, size : SIZE, subscriptionsLeft : noOid, publishingData : null >
+        createdPublisher(FROM,ROS2,publisher(COUNT,DT))
+    .
+
+    rl [publish] :
+        < ROS2 : ROS2Portal | >
+        < ME : Publisher | dataType : DT, node : FROM, queue : RB, size : SIZE >
+        publish(ME,FROM,DATA)
+    =>   
+        < ROS2 : ROS2Portal | >
+        if typecheck(DT,DATA) then
+            if size(RB) < SIZE then
+                < ME : Publisher | dataType : DT, node : FROM, queue : RB upRaw(DATA) >
+            else
+                < ME : Publisher | dataType : DT, node : FROM, queue : tail(RB) upRaw(DATA) >
+            fi
+            published(FROM,ME)
+        else
+            < ME : Publisher | dataType : DT, node : FROM, queue : RB >
+            ros2Error(publish(ME,FROM,DATA))
+        fi
+    .
+
+    rl [publish] :
+        < ROS2 : ROS2Portal | >
+        < ME : Publisher | queue : RAW RB, subscriptions : SUBS, subscriptionsLeft : noOid >
+    =>   
+        < ROS2 : ROS2Portal | >
+        < ME : Publisher | queue : RB, subscriptions : SUBS, subscriptionsLeft : SUBS, publishingData : RAW >
+    .
+
+    rl [publish] :
+        < ROS2 : ROS2Portal | >
+        < ME : Publisher | subscriptionsLeft : SUB SUBS, publishingData : RAW >
+    =>
+        < ROS2 : ROS2Portal | >
+        < ME : Publisher | subscriptionsLeft : SUBS, publishingData : RAW >
+        send(SUB,ME,RAW)
+    .
+
+    rl [createSubscription] :
+        < ROS2 : ROS2Portal | subscriptionCount : COUNT >
+        < ME : Publisher | topic : NAME, dataType : DT, subscriptions : SUBS >
+        createSubscription(ROS2,FROM,DT,NAME,SIZE)
+    =>   
+        < ROS2 : ROS2Portal | subscriptionCount : s(COUNT) >
+        < ME : Publisher | subscriptions : subscription(COUNT,DT) SUBS >
+        < subscription(COUNT,DT) : Subscription | topic : NAME, dataType : DT, node : FROM, queue : noData , size : SIZE >
+        createdSubscription(FROM,ROS2,subscription(COUNT,DT))
+    .
+    
+    rl [send] :
+        < ROS2 : ROS2Portal | >
+        < ME : Subscription | dataType : DT, queue : B, size : SIZE >
+        send(ME,FROM,RAW)
+    =>
+        < ROS2 : ROS2Portal | >
+        if size(B) < SIZE then
+            < ME : Subscription | queue : B downRaw(DT,RAW) >
+        else
+            < ME : Subscription | queue : tail(B) downRaw(DT,RAW) >
+        fi
+    .
+
+    rl [recieve] :
+        < ROS2 : ROS2Portal | >
+        < ME : Subscription | node : FROM, queue : DATA B >
+        recieve(ME,FROM)
+    =>
+        < ROS2 : ROS2Portal | >
+        < ME : Subscription | node : FROM, queue : B >
+        recieved(FROM,ME,DATA)
+    .
+endom
+

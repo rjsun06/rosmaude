@@ -1,0 +1,30 @@
+fth A is
+    pr NAT .
+    op f : Nat -> Nat .
+endfth
+
+fth B is
+    pr STRING .
+    pr NAT .
+    op g : Nat -> Nat .
+endfth
+
+fmod useB{X :: B} is
+endfm
+
+fmod BASE{X :: A} is
+    pr NAT .
+    pr STRING .
+endfm
+
+view BASE{X :: A} from B to BASE{X} is 
+    op g(x:Nat) to term f(x:Nat) .
+endv
+
+view NatA from A to NAT is
+    op f(n:Nat) to term s(n:Nat) .
+endv
+
+fmod test is
+    pr useB{BASE{NatA}} .
+endfm

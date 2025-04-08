@@ -1,9 +1,11 @@
 load ros .
+load std_msgs/msg/String .
 
 omod test-ros is
     pr ROS2 .
     pr STRING .
-    pr LIST{String} .
+    pr LIST{String} * (op nil to noString) .
+    pr ROSMAUDE#MSG#STRING#STRING * (op type to str) .
 
 
     class Talker | publisher : [Oid], words : List{String} .
@@ -15,13 +17,12 @@ omod test-ros is
     op init : -> Configuration .
 
     eq init = 
-        <ROS2>
-        < t : Talker | publisher : na, words : "HI" "Im T" "Hello World" "<DONE>" >
-        < a1 : Listener | subscription : na, got : nil >
-        < a2 : Listener | subscription : na, got : nil >
+        < t : Talker | publisher : na, words : noString "HI" "Im T" "Hello World" "<DONE>" >
+        < a1 : Listener | subscription : na, got : noString >
+        < a2 : Listener | subscription : na, got : noString >
         createPublisher(ROS2,t,str,"/speech",3)
-        createSubscription(ROS2,a1,str,"/speech",5)
-        createSubscription(ROS2,a2,str,"/speech",5)
+        createSubscription(ROS2,a1,str, "/speech",5)
+        createSubscription(ROS2,a2,str, "/speech",5)
     .
 
     var ME NEW O FROM : Oid .
@@ -45,10 +46,10 @@ omod test-ros is
     .
 
     rl [talk] :
-        < ME : Talker | publisher : O, words : nil >
+        < ME : Talker | publisher : O, words : noString >
         published(ME,O)
     =>
-        < ME : Talker | publisher : O, words : nil >
+        < ME : Talker | publisher : O, words : noString >
     .
 
     rl [initListener] :

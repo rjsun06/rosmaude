@@ -1,0 +1,157 @@
+
+fth MSG is
+    sort Elt .
+endfth
+
+omod ROS2-BASE is
+    pr CONVERSION .
+    sort Ros2Msg .
+    subsort Ros2Msg < Msg .
+endom
+
+omod MESSAGE{X :: MSG} is
+    pr ROS2-BASE .
+    sort MsgType{X} .
+    sort PublisherOid{X} SubscriptionOid{X}.
+    op type : -> MsgType{X} .
+    msg createPublisher : Oid Oid MsgType{X} String Int -> Ros2Msg .
+    msg createdPublisher : Oid Oid PublisherOid{X} -> Ros2Msg .
+    msg publish : PublisherOid{X} Oid X$Elt -> Ros2Msg .
+    msg published : Oid PublisherOid{X} ->  Ros2Msg .
+
+    msg createSubscription : Oid Oid MsgType{X} String Int -> Ros2Msg .
+    msg createdSubscription : Oid Oid SubscriptionOid{X} -> Ros2Msg .
+    msg recieve : SubscriptionOid{X} Oid -> Ros2Msg .
+    msg recieved : Oid SubscriptionOid{X} X$Elt -> Ros2Msg .
+endom
+
+
+
+fmod ROS2-INT8 is
+    pr INT .
+    sort int8 .
+    op int8 : Int -> int8 .
+    op int8 : -> int8 .
+endfm
+
+fmod ROS2-STRING is
+    pr STRING .
+    sort string .
+    op string : String -> string .
+    op string : -> string .
+endfm
+
+fmod SimpleTypes is
+    sort Simple .
+    op down : Simple Simple -> Simple .
+    eq down(S:Simple, D:Simple) = D:Simple [owise] .
+
+    pr ROS2-INT8 .
+    subsort int8 < Simple .
+    op down : Simple int8 -> int8 .
+    eq down(S:int8, D:int8) = S:int8 .
+
+    pr ROS2-STRING .
+    subsort string < Simple .
+    op down : Simple string -> string .
+    eq down(S:string, D:string) = S:string .
+endfm
+
+
+fmod RAW is
+    pr STRING .
+    pr SimpleTypes .
+    sorts Raw RawOrSimple RawError .
+    subsort Raw Simple < RawOrSimple .
+    op none : -> Raw .
+    op nil : -> Simple .
+    op _,_ : Raw Raw -> Raw [ctor comm assoc id: none] .
+    op _|->_ : String RawOrSimple -> Raw .
+    op _[_] : Raw String -> RawOrSimple .
+    op _[_=_] : Raw String RawOrSimple -> Raw .
+
+    op down : RawOrSimple RawOrSimple -> RawOrSimple .
+    eq down(S:RawOrSimple,D:RawOrSimple) = D:RawOrSimple [owise] .
+
+    op down : RawOrSimple Raw -> Raw .
+    eq down(S:Raw,D:Raw) = S:Raw .
+
+    op down : RawOrSimple Simple -> Simple .
+    eq down(S:Simple,D:Simple) = S:Simple .
+
+    var R : Raw .
+    var S : Simple .
+    var V : RawOrSimple .
+    var F FF : String .
+    eq none[F] = nil .
+    eq (R , F |-> V)[F] = V .
+    eq (R , FF |-> V)[F] = R[F] .
+
+
+
+
+endfm
+
+
+fth STRINGMSG is
+    pr ROS2-STRING .
+    sort Elt .
+    op getstring : Elt -> string .
+endfth
+
+view STRINGMSG from MSG to STRINGMSG is 
+endv
+
+view RAWasSTRINGMSG from STRINGMSG to RAW is
+    sort Elt to Raw .
+    op getstring(s:Elt) to term s:Raw["string"] .
+endv
+--- view STRINGMSG{X :: STRINGMSG} from MSG to X is endv
+
+fth LSTRINGMSG is
+    pr ROS2-INT8 .
+    pr ROS2-STRING .
+    inc INT .
+    inc STRINGMSG * (sort Elt to StringMsg) .
+    sort Elt .
+    op getlen : Elt -> int8 .
+    op getdata : Elt -> StringMsg .
+endfth
+
+view LSTRINGMSG from MSG to LSTRINGMSG is 
+endv
+view RAWasLSTRINGMSG from LSTRINGMSG to RAW is
+    sort Elt to Raw .
+    sort StringMsg to Raw .
+    op getlen(s:Elt) to term s:Raw["len"] .
+    op getdata(s:Elt) to term s:Raw["data"] .
+    op getstring(s:StringMsg) to term s:Raw["string"] .
+endv
+--- view LSTRINGMSG{X :: LSTRINGMSG} from MSG to X is endv
+
+mod CONVERSION+ is
+    pr CONVERSION .
+    pr SimpleTypes .
+endm
+
+view STRINGasSTRINGMSG from STRINGMSG to CONVERSION+ is
+    sort Elt to String .
+    op getstring(s:Elt) to term string(s:String) .
+endv
+
+view STRINGasLSTRINGMSG from LSTRINGMSG to CONVERSION+ is
+    sort Elt to String .
+    sort StringMsg to String .
+
+    op getlen(s:Elt) to term int8(2) .
+    op getdata(s:Elt) to term s:String .
+    op getstring(s:StringMsg) to term string(s:String) .
+
+endv
+
+omod test is
+    --- pr MESSAGE{LSTRINGMSG}{STRINGasLSTRINGMSG} .
+    --- pr MESSAGE{STRINGMSG}{STRINGasSTRINGMSG} .
+    pr MESSAGE{STRINGMSG}{RAWasSTRINGMSG} .
+
+endom

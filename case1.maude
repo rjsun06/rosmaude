@@ -1,0 +1,72 @@
+fth ANIMAL is
+endfth
+
+fmod BASE{X :: ANIMAL} is
+    sort Type{X} .
+    op t : -> Type{X} .
+    op s{X} : -> Type{X} .
+endfm
+
+--- I want to fit GOLDEN-RETRIEVER into a slot requiring an ANIMAL, 
+
+fmod GOLDEN-RETRIEVER is
+endfm
+
+view GOLDEN-RETRIEVER-AS-ANIMAL from ANIMAL to GOLDEN-RETRIEVER is
+endv
+view GOLDEN-RETRIEVER::AS::ANIMAL from ANIMAL to GOLDEN-RETRIEVER is
+endv
+
+fmod test is
+    inc BASE{GOLDEN-RETRIEVER-AS-ANIMAL} * (op t to t1) .
+    inc BASE{GOLDEN-RETRIEVER::AS::ANIMAL} * (op t to t2) .
+endfm
+
+red t1 . --- result Type{GOLDEN-RETRIEVER-AS-ANIMAL}: t1
+red t2 . --- result Type`{GOLDEN-RETRIEVER::AS::ANIMAL`}: t2
+
+
+--- things goes even wilder when doing views to theory .
+
+fth DOG is
+endfth
+--- this naming is horrible
+view DOG-AS-ANIMAL from ANIMAL to DOG is
+endv
+view GOLDEN-RETRIEVER-AS-DOG from DOG to GOLDEN-RETRIEVER is
+endv
+
+--- this naming is much better
+view DOG::AS::ANIMAL from ANIMAL to DOG is
+endv
+view GOLDEN-RETRIEVER::AS::DOG from DOG to GOLDEN-RETRIEVER is
+endv
+
+
+fmod test-double is
+    inc BASE{DOG-AS-ANIMAL}{GOLDEN-RETRIEVER-AS-DOG} * (op t to t1) .
+    inc BASE{DOG::AS::ANIMAL}{GOLDEN-RETRIEVER::AS::DOG} * (op t to t2) .
+endfm
+
+--- but check it out. look at the result sort:
+red t1 . --- result Type{DOG-AS-ANIMAL}{GOLDEN-RETRIEVER-AS-DOG}: t1
+red t2 . --- result Type`{DOG::AS::ANIMAL`}`{X`}: t2 
+
+--- also parameterized constant is not working .
+red s{DOG-AS-ANIMAL}{GOLDEN-RETRIEVER-AS-DOG} . --- this works
+red s{DOG::AS::ANIMAL}{GOLDEN-RETRIEVER::AS::DOG} . --- not this one
+
+
+
+--- ps: the same happens on . as well
+view DOG.AS.ANIMAL from ANIMAL to DOG is
+endv
+view GOLDEN-RETRIEVER.AS.DOG from DOG to GOLDEN-RETRIEVER is
+endv
+fmod test-dot is
+    inc BASE{DOG.AS.ANIMAL}{GOLDEN-RETRIEVER.AS.DOG} * (op t to t3) .
+endfm
+
+red t3 . --- result Type`{DOG.AS.ANIMAL`}`{X`}: t3
+red s{DOG.AS.ANIMAL}{GOLDEN-RETRIEVER.AS.DOG} .
+red s`{DOG.AS.ANIMAL`}`{X`} . --- but this wierd thing passes .

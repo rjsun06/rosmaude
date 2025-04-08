@@ -1,0 +1,12 @@
+mod A is
+    pr CONVERSION .
+    sort E .
+    op e : Int -> E .
+    op e : String -> E .
+endm
+mod B is
+    pr A * (
+        sort E to B ,
+        op e to b 
+    ) .
+endm

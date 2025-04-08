@@ -1,0 +1,12 @@
+
+fmod RAW is
+    pr String .
+    sort Raw RawPiece Simplex .
+    subsort Simplex < Raw .
+    op _:_ : String Raw -> RawPiece .
+    op _,_ : RawPiece RawPiece : -> RawPiece .
+    op {_} : RawPiece : -> Raw .
+
+    op int{_} : Int -> Simplex .
+    op string{_} : String -> Simplex .
+endfm

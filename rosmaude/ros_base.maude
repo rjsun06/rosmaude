@@ -1,0 +1,207 @@
+load ros_primitive .
+
+
+
+fmod RAW is
+    pr STRING .
+    pr ROSMAUDE#PRIMITIVE .
+    sorts Raw RawOrSimple RawError .
+    subsort Raw ros#primitive < RawOrSimple .
+    op none : -> Raw .
+    op _,_ : Raw Raw -> Raw [ctor comm assoc id: none] .
+    op _|->_ : String RawOrSimple -> Raw .
+    op _[_] : Raw String -> RawOrSimple .
+    op _[_=_] : Raw String RawOrSimple -> Raw .
+
+    --- op down : RawOrSimple RawOrSimple -> RawOrSimple .
+    --- eq down(S:RawOrSimple,D:RawOrSimple) = D:RawOrSimple [owise] .
+
+    --- op down : RawOrSimple Raw -> Raw .
+    --- eq down(S:Raw,D:Raw) = S:Raw .
+
+    --- op down : RawOrSimple Simple -> Simple .
+    --- eq down(S:Simple,D:Simple) = S:Simple .
+
+    vars R R1 R2 : Raw .
+    var S : ros#primitive .
+    var V : RawOrSimple .
+    var F FF : String .
+    eq (R , F |-> V)[F] = V .
+    eq (R , FF |-> V)[F] = R[F] .
+
+    op cat : Raw Raw -> Raw .
+    op mapping : String RawOrSimple -> Raw .
+    eq cat(R1,R2) = R1 , R2 .
+    eq mapping(F,V) = F |-> V .
+
+
+endfm
+
+
+fth MSG is
+    pr STRING .
+    pr RAW .
+    sort Elt .
+    op rosType : -> String .
+    op upRaw : Elt -> Raw .
+    op downRaw : Raw -> Elt .
+endfth
+
+fth ROSMAUDE#MSG#BODY is
+    pr STRING .
+    pr RAW .
+    sort Elt .
+    op upRaw : Elt -> Raw .
+    op downRaw : Raw -> Elt .
+endfth
+
+view Raw from ROSMAUDE#MSG#BODY to RAW is
+    sort Elt to Raw .
+    op upRaw(e:Elt) to term e:Raw .
+    op downRaw(r:Raw) to term r:Raw .
+endv
+
+omod ROS2-BASE is
+    pr RAW .
+    pr CONVERSION .
+    sort MsgType .
+    sort ServiceType .
+    sort Data .
+    sort ROS2Oid .
+    sort Ros2Msg .
+    sort PublisherOid SubscriptionOid .
+    subsort Ros2Msg < Msg .
+    subsort ROS2Oid PublisherOid SubscriptionOid < Oid .
+    op publisher : Nat MsgType -> PublisherOid .
+    op subscription : Nat MsgType -> SubscriptionOid .
+    op ROS2 : -> ROS2Oid .
+    op typecheck : MsgType Data -> Bool .
+    op rosType : MsgType -> String .
+    op upRaw : Data -> Raw .
+    op downRaw : MsgType Raw ~> Data .
+
+    msg createPublisher : ROS2Oid Oid MsgType String Int -> Ros2Msg
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook publisher (publisher : Nat MsgType ~> PublisherOid)
+            op-hook createdPublisher (createdPublisher : Oid ROS2Oid PublisherOid ~> Msg)
+            op-hook rosType (rosType : MsgType ~> String)
+    )].
+    msg createdPublisher : Oid ROS2Oid PublisherOid -> Ros2Msg .
+    msg publish : PublisherOid Oid Data -> Ros2Msg
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook published (published : Oid PublisherOid ~> Msg)
+            op-hook typecheck (typecheck : MsgType  Data ~> Bool)
+            term-hook true (true)
+            op-hook upRaw (upRaw : Data ~> Raw)
+    )].
+    msg published : Oid PublisherOid ->  Ros2Msg .
+    msg createSubscription : ROS2Oid Oid MsgType String Int -> Ros2Msg
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook subscription (subscription : Nat MsgType ~> SubscriptionOid)
+            op-hook createdSubscription (createdSubscription : Oid Oid SubscriptionOid ~> Msg)
+    )].
+    msg createdSubscription : Oid ROS2Oid SubscriptionOid -> Ros2Msg .
+    msg recieve : SubscriptionOid Oid -> Ros2Msg
+    [ctor special (
+            id-hook SpecialHubSymbol (roshook)
+            op-hook recieved (recieved : Oid SubscriptionOid Data ~> Msg)
+            op-hook downRaw (downRaw : MsgType Raw ~> Data)
+            op-hook rosType (rosType : MsgType ~> String)
+    )].
+    msg recieved : Oid SubscriptionOid Data -> Ros2Msg .
+    msg ros2Error : Ros2Msg -> Ros2Msg .
+    eq typecheck(T:MsgType,D:Data) = false [owise] .
+endom
+
+omod MESSAGE{X :: MSG} is
+    ex ROS2-BASE .
+    sort MsgType{X} .
+    sort PublisherOid{X} SubscriptionOid{X} .
+    sort Data{X} .
+    subsort MsgType{X} < MsgType .
+    subsort PublisherOid{X} < PublisherOid .
+    subsort SubscriptionOid{X} < SubscriptionOid .
+    subsort Data{X} < Data .
+    op [_] : X$Elt -> Data{X} .
+
+    op type : -> MsgType{X} .
+    op rosType : MsgType{X} -> String .
+    op upRaw : Data{X} -> Raw .
+    op downRaw : MsgType{X} Raw -> Data{X} .
+    eq rosType(mt:MsgType{X}) = rosType .
+    eq upRaw([data:X$Elt]) = upRaw(data:X$Elt) .
+    eq downRaw(mt:MsgType{X},raw:Raw) = [downRaw(raw:Raw)] .
+
+    op publisher : Nat MsgType{X} -> PublisherOid{X} .
+    op subscription : Nat MsgType{X} -> SubscriptionOid{X} .
+
+    --- msg createPublisher : ROS2Oid Oid MsgType{X} String Int -> Ros2Msg
+    --- [ctor special (
+    ---         id-hook SpecialHubSymbol (roshook)
+    ---         op-hook publisher (publisher : Nat MsgType{X} ~> PublisherOid{X})
+    ---         op-hook createdPublisher (createdPublisher : Oid ROS2Oid PublisherOid{X} ~> Msg)
+    --- )].
+    --- msg createdPublisher : Oid ROS2Oid PublisherOid{X} -> Ros2Msg .
+    --- msg publish : PublisherOid{X} Oid Data{X} -> Ros2Msg
+    --- [ctor special (
+    ---         id-hook SpecialHubSymbol (roshook)
+    ---         op-hook published (published : Oid PublisherOid{X} ~> Msg)
+    --- )].
+    --- msg published : Oid PublisherOid{X} ->  Ros2Msg .
+
+    --- msg createSubscription : ROS2Oid Oid MsgType{X} String Int -> Ros2Msg
+    --- [ctor special (
+    ---         id-hook SpecialHubSymbol (roshook)
+    ---         op-hook subscription (subscription : Nat MsgType{X} ~> SubscriptionOid{X})
+    ---         op-hook createdSubscription (createdSubscription : Oid Oid SubscriptionOid{X} ~> Msg)
+    --- )].
+    --- msg createdSubscription : Oid ROS2Oid SubscriptionOid{X} -> Ros2Msg .
+    --- msg recieve : SubscriptionOid{X} Oid -> Ros2Msg
+    --- [ctor special (
+    ---         id-hook SpecialHubSymbol (roshook)
+    ---         op-hook recieved (recieved : Oid SubscriptionOid{X} Data{X} ~> Msg)
+    --- )].
+    --- msg recieved : Oid SubscriptionOid{X} Data{X} -> Ros2Msg .
+
+    eq typecheck(type,x:Data{X}) = true .
+endom
+
+
+
+
+
+--- view STRINGMSG{X :: STRINGMSG} from MSG to X is endv
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
