@@ -1,0 +1,63 @@
+sload ros_base .
+
+fth ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME is
+    pr ROSMAUDE#PRIMITIVE .
+    sort Elt .
+    op sec:_,nanosec:_ : ros#int32 ros#uint32 -> Elt .
+    op sec : Elt -> ros#int32 .
+    op nanosec : Elt -> ros#uint32 .
+endfth
+
+fmod ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#BASE{X :: ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME} is
+    pr STRING .
+    pr RAW .
+    op upRaw : X$Elt -> Raw .
+    op downRaw : Raw -> X$Elt .
+    var R : Raw .
+    var E : X$Elt .
+    var sec : ros#int32 .
+    var nanosec : ros#uint32 .
+    eq upRaw(E:X$Elt) = (
+        ("sec" |-> sec(E)),
+        ("nanosec" |-> nanosec(E))
+        ) .
+    ceq downRaw(R) = sec: sec, nanosec: nanosec
+    if true 
+    /\ sec := R["sec"] 
+    /\ nanosec := R["nanosec"] 
+    .
+endfm
+
+view ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#TOP from MSG to ROSMAUDE#MSG#BODY is
+    op rosType to term "builtin_interfaces/msg/Time" .
+endv
+
+view ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME} from ROSMAUDE#MSG#BODY to ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#BASE{X} is 
+    sort Elt to X$Elt .
+endv
+
+omod ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME} is
+    pr MESSAGE{ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#TOP}{ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#CUSTOM{X}} .
+endom
+
+--- default support
+fmod ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT is
+    pr ROSMAUDE#PRIMITIVE .
+    sort Elt .
+    op sec:_,nanosec:_ : ros#int32 ros#uint32 -> Elt .
+    op sec : Elt -> ros#int32 .
+    op nanosec : Elt -> ros#uint32 .
+    var sec : ros#int32 .
+    var nanosec : ros#uint32 .
+    eq sec(sec: sec, nanosec: nanosec) = sec .
+    eq nanosec(sec: sec, nanosec: nanosec) = nanosec .
+endfm
+
+view ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT from ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME to ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT is
+endv
+
+omod ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME is
+    pr ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#CUSTOM{ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT} .
+endom
+
+

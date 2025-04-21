@@ -1,0 +1,32 @@
+
+fmod ROS2-INT8 is
+    pr INT .
+    sort int8 .
+    op int8 : Int -> int8 .
+    op int8 : -> int8 .
+endfm
+
+fmod ROS2-STRING is
+    pr STRING .
+    sort string .
+    op string : String -> string .
+    op string : -> string .
+    op get : string -> String .
+    eq get(string(s:String)) = s:String .
+endfm
+
+fmod SimpleTypes is
+    sort Simple .
+    op down : Simple Simple -> Simple .
+    eq down(S:Simple, D:Simple) = D:Simple [owise] .
+
+    pr ROS2-INT8 .
+    subsort int8 < Simple .
+    op down : Simple int8 -> int8 .
+    eq down(S:int8, D:int8) = S:int8 .
+
+    pr ROS2-STRING .
+    subsort string < Simple .
+    op down : Simple string -> string .
+    eq down(S:string, D:string) = S:string .
+endfm

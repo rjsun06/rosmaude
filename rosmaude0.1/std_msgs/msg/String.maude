@@ -1,0 +1,30 @@
+sload ros_base .
+sload pyobject .
+sload ros_msgType .
+
+fmod ROSMAUDE#MSG#STRING#BASE is
+    pr ROSMAUDE#PRIMITIVE .
+    pr ROSMAUDE#MSGTYPE .
+    sort Elt .
+    op rosType : -> MsgType .
+    eq rosType = msgType("std_msgs/msg/String") .
+    op data:_ : ros#string -> Elt [ctor special (
+        id-hook SpecialHubSymbol (rosmsghook)
+        term-hook rosType (rosType) 
+        term-hook keys ("data") 
+        op-hook ptr (<obj at _> : Int ~> PyObject)
+    )] .
+    op data : Elt -> ros#string [ctor special (
+        id-hook SpecialHubSymbol (msghook)
+        term-hook key ("data")
+    )] .
+    var data : ros#string .
+    eq data(data: data) = data .
+endfm
+
+view ROSMAUDE#MSG#STRING#BASE from MSG to ROSMAUDE#MSG#STRING#BASE is
+endv
+
+omod ROSMAUDE#MSG#STRING is
+    pr MESSAGE{ROSMAUDE#MSG#STRING#BASE} .
+endom

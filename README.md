@@ -25,6 +25,9 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
    cd rosmaude
 2.
    ```bash
+   export MAUDE_LIB=$PWD/rosmaude
+3.
+   ```bash
    python3 rosmaude.py [--simulation] test_ros.maude
 
 
@@ -33,7 +36,6 @@ Key Files
 - `ros_logical.maude`: Pure Maude simulation for rosmaude nodes only.
 - `rosmaude.py`: Bridge script implementing special hooks in `ros_external.maude` with `rclpy`.
 - `test_ros.maude`: Example Maude configuration.
-- `msgType.py`:	Message type translation utilities.
 
 Supported Message Types
 |Maude Type	| ROS2 Type |

@@ -1,113 +1,67 @@
 load ros_primitive .
-
-fmod RAW is
-    pr STRING .
-    pr ROSMAUDE#PRIMITIVE .
-    sorts Raw RawOrSimple RawError .
-    subsort Raw ros#primitive < RawOrSimple .
-    op none : -> Raw .
-    op _,_ : Raw Raw -> Raw [ctor comm assoc id: none] .
-    op _|->_ : String RawOrSimple -> Raw .
-    op _[_] : Raw String -> RawOrSimple .
-    op _[_=_] : Raw String RawOrSimple -> Raw .
-
-    vars R R1 R2 : Raw .
-    var S : ros#primitive .
-    var V : RawOrSimple .
-    var F FF : String .
-    eq (R , F |-> V)[F] = V .
-    eq (R , FF |-> V)[F] = R[F] .
-
-    op cat : Raw Raw -> Raw .
-    op mapping : String RawOrSimple -> Raw .
-    eq cat(R1,R2) = R1 , R2 .
-    eq mapping(F,V) = F |-> V .
+load ros_msgType .
 
 
-endfm
 
 
 fth MSG is
-    pr STRING .
-    pr RAW .
+    pr ROSMAUDE#MSGTYPE .
     sort Elt .
-    op rosType : -> String .
-    op upRaw : Elt -> Raw .
-    op downRaw : Raw -> Elt .
+    op rosType : -> MsgType .
 endfth
 
-fth ROSMAUDE#MSG#BODY is
-    pr STRING .
-    pr RAW .
-    sort Elt .
-    op upRaw : Elt -> Raw .
-    op downRaw : Raw -> Elt .
-endfth
-
-view Raw from ROSMAUDE#MSG#BODY to RAW is
-    sort Elt to Raw .
-    op upRaw(e:Elt) to term e:Raw .
-    op downRaw(r:Raw) to term r:Raw .
-endv
 
 omod ROS2-BASE is
-    pr RAW .
     pr CONVERSION .
-    sort MsgType .
+    pr ROSMAUDE#MSGTYPE .
+    pr ROSMAUDE#PRIMITIVE .
     sort ServiceType .
     sort Data .
     sort ROS2Oid .
     sort Ros2Msg .
     sort PublisherOid SubscriptionOid .
+    sort MsgTypeSign .
     subsort Ros2Msg < Msg .
     subsort ROS2Oid PublisherOid SubscriptionOid < Oid .
-    op publisher : Nat MsgType -> PublisherOid .
-    op subscription : Nat MsgType -> SubscriptionOid .
+    op publisher : Nat MsgTypeSign -> PublisherOid .
+    op subscription : Nat MsgTypeSign -> SubscriptionOid .
     op ROS2 : -> ROS2Oid .
-    op typecheck : MsgType Data -> Bool .
-    op rosType : MsgType -> String .
+    op typecheck : MsgTypeSign Data -> Bool .
+    op rosType : MsgTypeSign -> MsgType .
 
-    op upRaw : Data -> Raw .
-    op downRaw : MsgType Raw -> Data .
-    msg createPublisher : ROS2Oid Oid MsgType String Int -> Ros2Msg
+    msg createPublisher : ROS2Oid Oid MsgTypeSign String Int -> Ros2Msg
     [ctor special (
             id-hook SpecialHubSymbol (roshook)
-            op-hook publisher (publisher : Nat MsgType ~> PublisherOid)
+            op-hook publisher (publisher : Nat MsgTypeSign ~> PublisherOid)
             op-hook createdPublisher (createdPublisher : Oid ROS2Oid PublisherOid ~> Msg)
-            op-hook rosType (rosType : MsgType ~> String)
-    )].
+            op-hook rosType (rosType : MsgTypeSign ~> MsgType)
+    )] .
+    
     msg createdPublisher : Oid ROS2Oid PublisherOid -> Ros2Msg .
-    msg publish : PublisherOid Oid Data -> Ros2Msg .
-    msg publish : PublisherOid Oid Raw -> Ros2Msg
+    msg publish : PublisherOid Oid Data -> Ros2Msg
     [ctor special (
             id-hook SpecialHubSymbol (roshook)
             op-hook published (published : Oid PublisherOid ~> Msg)
-            op-hook typecheck (typecheck : MsgType  Data ~> Bool)
-            op-hook cat (_,_ : Raw Raw ~> Raw)
-            op-hook mapping (_|->_ : String RawOrSimple ~> Raw)
             term-hook true (true)
     )].
     msg published : Oid PublisherOid ->  Ros2Msg .
-    msg createSubscription : ROS2Oid Oid MsgType String Int -> Ros2Msg
+    msg createSubscription : ROS2Oid Oid MsgTypeSign String Int -> Ros2Msg
     [ctor special (
             id-hook SpecialHubSymbol (roshook)
-            op-hook subscription (subscription : Nat MsgType ~> SubscriptionOid)
+            op-hook subscription (subscription : Nat MsgTypeSign ~> SubscriptionOid)
             op-hook createdSubscription (createdSubscription : Oid Oid SubscriptionOid ~> Msg)
-            op-hook rosType (rosType : MsgType ~> String)
+            op-hook rosType (rosType : MsgTypeSign ~> MsgType)
     )].
     msg createdSubscription : Oid ROS2Oid SubscriptionOid -> Ros2Msg .
     msg recieve : SubscriptionOid Oid -> Ros2Msg
     [ctor special (
             id-hook SpecialHubSymbol (roshook)
-            op-hook recieved (recieved : Oid SubscriptionOid Raw ~> Msg)
-            op-hook rosType (rosType : MsgType ~> String)
-            op-hook cat (_,_ : Raw Raw ~> Raw)
-            op-hook mapping (_|->_ : String RawOrSimple ~> Raw)
+            op-hook recieved (recieved : Oid SubscriptionOid Data ~> Msg)
+            op-hook ptr (<obj at _> : Int ~> PyObject)
     )].
     msg recieved : Oid SubscriptionOid Data -> Ros2Msg .
-    msg recieved : Oid SubscriptionOid Raw -> Ros2Msg .
     msg ros2Error : Ros2Msg -> Ros2Msg .
-    eq typecheck(T:MsgType,D:Data) = false [owise] .
+    eq typecheck(T:MsgTypeSign,D:Data) = false [owise] .
 endom
 
 omod MESSAGE{X :: MSG} is
@@ -115,30 +69,20 @@ omod MESSAGE{X :: MSG} is
     sort MsgType{X} .
     sort PublisherOid{X} SubscriptionOid{X} .
     sort Data{X} .
-    subsort MsgType{X} < MsgType .
+    subsort MsgType{X} < MsgTypeSign .
     subsort PublisherOid{X} < PublisherOid .
     subsort SubscriptionOid{X} < SubscriptionOid .
     subsort Data{X} < Data .
-    op [_] : X$Elt -> Data{X} .
+    subsort X$Elt < Data{X} .
+    --- op [_] : X$Elt -> Data{X} .
 
     op type : -> MsgType{X} .
-    op rosType : MsgType{X} -> String .
+    op rosType : MsgType{X} -> MsgType .
     eq rosType(mt:MsgType{X}) = rosType .
 
     op publisher : Nat MsgType{X} -> PublisherOid{X} .
     op subscription : Nat MsgType{X} -> SubscriptionOid{X} .
 
-    op upRaw : Data{X} -> Raw .
-    op downRaw : MsgType{X} Raw -> Data{X} .
-    eq upRaw([e:X$Elt]) = upRaw(e:X$Elt) .
-    eq downRaw(t:MsgType{X},r:Raw) = [downRaw(r:Raw)] .
-
-
-    var o : Oid .
-    var pid : PublisherOid{X} .
-    var sid : SubscriptionOid{X} .
-    var data : Data{X} .
-    var r : Raw .
     --- msg createPublisher : ROS2Oid Oid MsgType{X} String Int -> Ros2Msg
     --- [ctor special (
     ---         id-hook SpecialHubSymbol (roshook)
@@ -147,8 +91,6 @@ omod MESSAGE{X :: MSG} is
     --- )].
     --- msg createdPublisher : Oid ROS2Oid PublisherOid{X} -> Ros2Msg .
     --- msg publish : PublisherOid{X} Oid Data{X} -> Ros2Msg
-    msg publish : PublisherOid{X} Oid Data{X} -> Ros2Msg .
-    eq publish(pid,o,data) = publish(pid,o,upRaw(data)) .
     --- [ctor special (
     ---         id-hook SpecialHubSymbol (roshook)
     ---         op-hook published (published : Oid PublisherOid{X} ~> Msg)
@@ -168,10 +110,8 @@ omod MESSAGE{X :: MSG} is
     ---         op-hook recieved (recieved : Oid SubscriptionOid{X} Data{X} ~> Msg)
     --- )].
     --- msg recieved : Oid SubscriptionOid{X} Data{X} -> Ros2Msg .
-    msg recieved : Oid SubscriptionOid{X} Raw -> Ros2Msg .
-    eq recieved(o,sid,r) = recieved(o,sid,[downRaw(r)]) .
 
-    eq typecheck(type,x:Data{X}) = true .
+    eq typecheck(t:MsgType{X},x:Data{X}) = true .
 endom
 
 

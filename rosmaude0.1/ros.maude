@@ -1,0 +1,7 @@
+load ros_base .
+load ros_logical .
+
+omod ROS2 is
+    pr ROS2-BASE .
+    pr ROS2-Logical .
+endom

@@ -1,0 +1,5 @@
+fmod PYOBJECT is
+    pr CONVERSION .
+    sort PyObject .
+    op <obj at _> : Int -> PyObject [ctor] .
+endfm

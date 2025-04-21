@@ -1,0 +1,144 @@
+load pyobject .
+fmod ROSMAUDE#PRIMITIVE#ORIGIN is
+    pr CONVERSION .
+    pr PYOBJECT .
+    sort ros#primitive .
+    subsort ros#primitive < PyObject .
+    op string : ros#primitive -> String
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+    )] .
+    op int : ros#primitive -> Int
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+    )] .
+    op float : ros#primitive -> Float
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+    )] .
+endfm
+
+fmod ROSMAUDE#PRIMITIVE#BASE is
+    ex ROSMAUDE#PRIMITIVE#ORIGIN .
+    sort new .
+    subsort new < ros#primitive .
+endfm
+
+fmod ROSMAUDE#BOOL is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#bool) .
+    pr BOOL .
+    op ros#bool : Bool -> ros#bool .
+endfm
+
+fmod ROSMAUDE#BYTE is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#byte) .
+    pr STRING .
+    op ros#byte : String -> ros#byte .
+endfm
+
+fmod ROSMAUDE#CHAR is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#char) .
+    pr STRING .
+    op ros#char : Char -> ros#char .
+endfm
+
+fmod ROSMAUDE#FLOAT is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#float32) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#float64) .
+    pr FLOAT .
+    op ros#float32 : Float -> ros#float32 .
+    op ros#float64 : Float -> ros#float64 .
+endfm
+
+fmod ROSMAUDE#INT is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#int8) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#uint8) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#int16) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#uint16) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#int32) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#uint32) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#int64) .
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#uint64) .
+    pr INT .
+    op ros#int8 : Int -> ros#int8 
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#uint8 : Int -> ros#uint8
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#int16 : Int -> ros#int16
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#uint16 : Int -> ros#uint16
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#int32 : Int -> ros#int32
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#uint32 : Int -> ros#uint32
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#int64 : Int -> ros#int64
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    op ros#uint64 : Int -> ros#uint64
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    
+    var i : Int .
+    ceq ros#int8  (i) = ros#int8  (i rem (1 << 31)) if i > (i rem (1 << 31)) .
+    ceq ros#uint8 (i) = ros#uint8 (i rem (1 << 31)) if i > (i rem (1 << 31)) .
+    ceq ros#int16 (i) = ros#int16 (i rem (1 << 63)) if i > (i rem (1 << 63)) .
+    ceq ros#uint16(i) = ros#uint16(i rem (1 << 63)) if i > (i rem (1 << 63)) .
+    ceq ros#int32 (i) = ros#int32 (i rem (1 << 127)) if i > (i rem (1 << 127)) .
+    ceq ros#uint32(i) = ros#uint32(i rem (1 << 127)) if i > (i rem (1 << 127)) .
+    ceq ros#int64 (i) = ros#int64 (i rem (1 << 255)) if i > (i rem (1 << 255)) .
+    ceq ros#uint64(i) = ros#uint64(i rem (1 << 255)) if i > (i rem (1 << 255)) .
+    eq int(ros#int8  (i)) = i .
+    eq int(ros#uint8 (i)) = i .
+    eq int(ros#int16 (i)) = i .
+    eq int(ros#uint16(i)) = i .
+    eq int(ros#int32 (i)) = i .
+    eq int(ros#uint32(i)) = i .
+    eq int(ros#int64 (i)) = i .
+    eq int(ros#uint64(i)) = i .
+endfm
+
+fmod ROSMAUDE#STRING is
+    ex ROSMAUDE#PRIMITIVE#BASE * (sort new to ros#string) .
+    pr STRING .
+    op ros#string : String -> ros#string
+    [special (
+        id-hook SpecialHubSymbol (rosvaluehook)
+        op-hook ptr (<obj at _> : Int ~> PyObject))
+    ] .
+    eq string(ros#string(S:String)) = S:String .
+endfm
+
+fmod ROSMAUDE#PRIMITIVE is
+    pr ROSMAUDE#PRIMITIVE#ORIGIN .
+    pr ROSMAUDE#BOOL .
+    pr ROSMAUDE#BYTE .
+    pr ROSMAUDE#CHAR .
+    pr ROSMAUDE#FLOAT .
+    pr ROSMAUDE#INT .
+    pr ROSMAUDE#STRING .
+endfm
+
+

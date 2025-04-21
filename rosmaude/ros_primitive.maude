@@ -1,5 +1,9 @@
 fmod ROSMAUDE#PRIMITIVE#ORIGIN is
+    pr CONVERSION .
     sort ros#primitive .
+    op string : ros#primitive ~> String .
+    op int : ros#primitive ~> Int .
+    op float : ros#primitive ~> Float .
 endfm
 
 fmod ROSMAUDE#PRIMITIVE#BASE is
@@ -52,6 +56,16 @@ fmod ROSMAUDE#INT is
     op ros#uint32 : Int -> ros#uint32 .
     op ros#int64 : Int -> ros#int64 .
     op ros#uint64 : Int -> ros#uint64 .
+
+    var i : Int .
+    eq int(ros#int8  (i)) = i .
+    eq int(ros#uint8 (i)) = i .
+    eq int(ros#int16 (i)) = i .
+    eq int(ros#uint16(i)) = i .
+    eq int(ros#int32 (i)) = i .
+    eq int(ros#uint32(i)) = i .
+    eq int(ros#int64 (i)) = i .
+    eq int(ros#uint64(i)) = i .
 endfm
 
 fmod ROSMAUDE#STRING is

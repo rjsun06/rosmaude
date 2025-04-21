@@ -1,13 +1,13 @@
 load ros .
 load std_msgs/msg/String .
-load std_msgs/msg/Header .
---- load builtin_interfaces/msg/Time .
+load builtin_interfaces/msg/Time .
 
 omod test1 is
     pr ROS2 .
     pr STRING .
     pr LIST{String} * (op nil to noString) .
-    pr ROSMAUDE#MSG#STRING * (op type to str) .
+    pr ROSMAUDE#MSG#STRING * (op type to str, sort Elt to Str) .
+
 
     class Talker | publisher : [Oid], words : List{String} .
     class Listener | subscription : [Oid], got : List{String} .
@@ -29,13 +29,14 @@ omod test1 is
     var ME NEW O FROM : Oid .
     var WORDS : List{String} .
     var STR : String .
+    var RSTR : Str .
 
     rl [initTalker] :
         < ME : Talker | publisher : na, words : STR WORDS >
         createdPublisher(ME, ROS2, NEW)
     =>
         < ME : Talker | publisher : NEW, words : WORDS >
-        publish(NEW,ME,[STR])
+        publish(NEW,ME,data: ros#string(STR))
     .
 
     rl [talk] :
@@ -43,7 +44,7 @@ omod test1 is
         published(ME,O)
     =>
         < ME : Talker | publisher : O, words : WORDS >
-        publish(O,ME,[STR])
+        publish(O,ME,data: ros#string(STR))
     .
 
     rl [talk] :
@@ -61,9 +62,9 @@ omod test1 is
         recieve(NEW, ME)
     .    
 
-    rl [initListener] :
+    crl [initListener] :
         < ME : Listener | got : WORDS >
-        recieved(ME, FROM, [STR])
+        recieved(ME, FROM, RSTR)
     =>
         if STR == "<DONE>" then
             < ME : Listener | got : WORDS >
@@ -71,6 +72,7 @@ omod test1 is
             < ME : Listener | got : WORDS STR >
             recieve(FROM, ME)
         fi
+    if STR := string(data(RSTR)) 
     .    
 endom
 
@@ -79,7 +81,7 @@ omod test2 is
     pr ROS2 .
     pr INT .
     pr LIST{Int} * (op nil to noInt) .
-    pr ROSMAUDE#MSG#HEADER * (op type to header, sort Elt to Header) .
+    pr ROSMAUDE#MSG#BUILTIN'_INTERFACES#TIME * (op type to time, sort Elt to Time) .
     class Talker | publisher : [Oid], words : List{Int} .
     class Listener | subscription : [Oid], got : List{Int} .
 
@@ -92,22 +94,22 @@ omod test2 is
         < t2 : Talker | publisher : na, words : noInt 9 4 7 0 >
         < a21 : Listener | subscription : na, got : noInt >
         < a22 : Listener | subscription : na, got : noInt >
-        createPublisher(ROS2,t2,header,"/speech2",3)
-        createSubscription(ROS2,a21,header, "/speech2",5)
-        createSubscription(ROS2,a22,header, "/speech2",5)
+        createPublisher(ROS2,t2,time,"/speech2",3)
+        createSubscription(ROS2,a21,time, "/speech2",5)
+        createSubscription(ROS2,a22,time, "/speech2",5)
     .
 
     var ME NEW O FROM : Oid .
     var WORDS : List{Int} .
     var INT : Int .
-    var TIME : Header .
+    var TIME : Time .
 
     rl [initTalker] :
         < ME : Talker | publisher : na, words : INT WORDS >
         createdPublisher(ME, ROS2, NEW)
     =>
         < ME : Talker | publisher : NEW, words : WORDS >
-        publish(NEW,ME,[stamp: (sec: ros#int32(INT), nanosec: ros#uint32(0)), frame-id: ros#string("a")])
+        publish(NEW,ME,sec: ros#int32(INT), nanosec: ros#uint32(0))
     .
 
     rl [talk] :
@@ -115,7 +117,7 @@ omod test2 is
         published(ME,O)
     =>
         < ME : Talker | publisher : O, words : WORDS >
-        publish(O,ME,[stamp: (sec: ros#int32(INT), nanosec: ros#uint32(0)), frame-id: ros#string("a")]) 
+        publish(O,ME,sec: ros#int32(INT), nanosec: ros#uint32(0))
     .
 
     rl [talk] :
@@ -135,7 +137,7 @@ omod test2 is
 
     crl [initListener] :
         < ME : Listener | got : WORDS >
-        recieved(ME, FROM, [TIME])
+        recieved(ME, FROM, TIME)
     =>
         if INT == 0 then
             < ME : Listener | got : WORDS >
@@ -143,7 +145,7 @@ omod test2 is
             < ME : Listener | got : WORDS INT >
             recieve(FROM, ME)
         fi
-    if INT := int(sec(stamp(TIME))) 
+    if INT := int(sec(TIME)) 
     .    
 endom
 

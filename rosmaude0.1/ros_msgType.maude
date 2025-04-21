@@ -1,0 +1,10 @@
+fmod ROSMAUDE#MSGTYPE is
+    pr INT .
+    pr STRING .
+    sort MsgType .
+    op <ros2interface at _> : Int -> MsgType [ctor] .
+    op msgType : String -> MsgType [special (
+        id-hook SpecialHubSymbol (rosmsghook)
+        op-hook ptr (<ros2interface at _> : Int ~> MsgType)
+    )].
+endfm

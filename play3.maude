@@ -1,0 +1,9 @@
+mod A is
+    sort A .
+    op a : -> A [ctor special (
+        id-hook SpecialHubSymbol (Ahook)
+    )] .
+    op b : -> A .
+    eq a = b .
+endm
+

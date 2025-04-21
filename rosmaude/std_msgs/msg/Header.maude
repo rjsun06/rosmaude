@@ -1,0 +1,76 @@
+load ros_base .
+load ../../builtin_interfaces/msg/Time .
+
+fth ROSMAUDE#MSG#INTERFACE#HEADER is
+    pr ROSMAUDE#PRIMITIVE .
+    inc ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME * (sort Elt to Stamp) .
+    sort Elt .
+    op stamp:_,frame-id:_ : Stamp ros#string -> Elt .
+    op stamp : Elt -> Stamp .
+    op frame-id : Elt -> ros#string .
+endfth
+
+view ROSMAUDE#MSG#HEADER#BUILTIN_INTERFACES#TIME
+from ROSMAUDE#MSG#INTERFACE#BUILTIN_INTERFACES#TIME 
+to ROSMAUDE#MSG#INTERFACE#HEADER
+is
+    sort Elt to Stamp .
+endv
+
+fmod ROSMAUDE#MSG#HEADER#BASE{X :: ROSMAUDE#MSG#INTERFACE#HEADER} is
+    pr STRING .
+    pr RAW .
+    pr ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#BASE{ROSMAUDE#MSG#HEADER#BUILTIN_INTERFACES#TIME}{X} * (
+        op downRaw to downRawStamp
+    ) .
+    op upRaw : X$Elt -> Raw .
+    op downRaw : Raw -> X$Elt .
+    var R : Raw .
+    var E : X$Elt .
+    var stamp : X$Stamp .
+    var frame-id : ros#string .
+    eq upRaw(E) = (
+        ("stamp" |-> upRaw(stamp(E))),
+        ("frame_id" |-> frame-id(E))
+        ) .
+    ceq downRaw(R) = stamp: stamp,frame-id: frame-id 
+    if true 
+    /\ stamp := downRawStamp(R["stamp"])
+    /\ frame-id := R["frame_id"] 
+    .
+endfm
+
+view ROSMAUDE#MSG#HEADER#TOP from MSG to ROSMAUDE#MSG#BODY is
+    op rosType to term "std_msgs/msg/Header" .
+endv
+
+view ROSMAUDE#MSG#HEADER#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#HEADER} from ROSMAUDE#MSG#BODY to ROSMAUDE#MSG#HEADER#BASE{X} is 
+    sort Elt to X$Elt .
+endv
+
+omod ROSMAUDE#MSG#HEADER#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#HEADER} is
+    pr MESSAGE{ROSMAUDE#MSG#HEADER#TOP}{ROSMAUDE#MSG#HEADER#CUSTOM{X}} .
+endom
+
+--- default support
+fmod ROSMAUDE#MSG#HEADER#DEFAULT is
+    pr ROSMAUDE#PRIMITIVE .
+    pr ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT * (sort Elt to Stamp) .
+    sort Elt .
+    op stamp:_,frame-id:_ : Stamp ros#string -> Elt .
+    op stamp : Elt -> Stamp .
+    op frame-id : Elt -> ros#string .
+    var stamp : Stamp .
+    var frame-id : ros#string .
+    eq stamp(stamp: stamp, frame-id: frame-id) = stamp .
+    eq frame-id(stamp: stamp, frame-id: frame-id) = frame-id .
+endfm
+
+view ROSMAUDE#MSG#HEADER#DEFAULT from ROSMAUDE#MSG#INTERFACE#HEADER to ROSMAUDE#MSG#HEADER#DEFAULT is
+endv
+
+omod ROSMAUDE#MSG#HEADER is
+    pr ROSMAUDE#MSG#HEADER#CUSTOM{ROSMAUDE#MSG#HEADER#DEFAULT} .
+endom
+
+

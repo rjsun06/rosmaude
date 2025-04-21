@@ -1,20 +1,27 @@
 sload ros_base .
 
 fth ROSMAUDE#MSG#INTERFACE#STRING is
-    pr ROSMAUDE#STRING .
+    pr ROSMAUDE#PRIMITIVE .
     sort Elt .
+    op data:_ : ros#string -> Elt .
     op data : Elt -> ros#string .
-    op set-data : Elt ros#string -> Elt .
-    op default : -> Elt .
 endfth
 
 fmod ROSMAUDE#MSG#STRING#BASE{X :: ROSMAUDE#MSG#INTERFACE#STRING} is
     pr STRING .
     pr RAW .
     op upRaw : X$Elt -> Raw .
-    eq upRaw(e:X$Elt) = ("data" |-> data(e:X$Elt)) .
     op downRaw : Raw -> X$Elt .
-    eq downRaw(r:Raw) = set-data(default,r:Raw["data"]) .
+    var R : Raw .
+    var E : X$Elt .
+    var vdata : ros#string .
+    eq upRaw(E:X$Elt) = (
+        "data" |-> data(E)
+        ) .
+    ceq downRaw(R) = data: vdata
+    if true 
+    /\ vdata := (R ["data"])
+    .
 endfm
 
 view ROSMAUDE#MSG#STRING#TOP from MSG to ROSMAUDE#MSG#BODY is
@@ -25,23 +32,19 @@ view ROSMAUDE#MSG#STRING#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#STRING} from ROSMAUD
     sort Elt to X$Elt .
 endv
 
-view ROSMAUDE#MSG#STRING#String from ROSMAUDE#MSG#INTERFACE#STRING to ROSMAUDE#STRING is
-    sort Elt to String .
-    op data(e:Elt) to term ros#string(e:String) .
-    op set-data(e:Elt,s:ros#string) to term get(s:ros#string) .
-    op default to term "" .
-endv
-
-omod ROSMAUDE#MSG#STRING#RAW is
-    pr MESSAGE{ROSMAUDE#MSG#STRING#TOP}{Raw} .
-endom
-
-omod ROSMAUDE#MSG#STRING{X :: ROSMAUDE#MSG#INTERFACE#STRING} is
+omod ROSMAUDE#MSG#STRING#CUSTOM{X :: ROSMAUDE#MSG#INTERFACE#STRING} is
     pr MESSAGE{ROSMAUDE#MSG#STRING#TOP}{ROSMAUDE#MSG#STRING#CUSTOM{X}} .
 endom
 
-omod ROSMAUDE#MSG#STRING#STRING is
-    pr ROSMAUDE#MSG#STRING{ROSMAUDE#MSG#STRING#String} .
+--- default support
+view ROSMAUDE#MSG#STRING#DEFAULT from ROSMAUDE#MSG#INTERFACE#STRING to ROSMAUDE#PRIMITIVE is
+    sort Elt to String .
+    op data: data:ros#string to term get(data:ros#string) .
+    op data(E:Elt) to term ros#string(E:String) .
+endv
+
+omod ROSMAUDE#MSG#STRING is
+    pr ROSMAUDE#MSG#STRING#CUSTOM{ROSMAUDE#MSG#STRING#DEFAULT} .
 endom
 
 

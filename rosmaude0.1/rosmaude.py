@@ -1,9 +1,9 @@
-#%%
 import maude
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
+import ctypes
 import traceback
 import argparse
 import threading
@@ -19,10 +19,6 @@ primitives = {
     'int16':int,
     'int32':int,
     'int64':int,
-    'uint8':int,
-    'uint16':int,
-    'uint32':int,
-    'uint64':int,
     'float32':float,
     'float64':float
 }
@@ -67,40 +63,40 @@ def floatTerm2float(m:maude.Module,s:maude.Term):
 def float2floatTerm(m:maude.Module,s:float,wrap=""):
     return m.parseTerm(f"{wrap}({str(s)})")
 
-def iterraw(raw:maude.Term,mapping,cat):
-    if raw.symbol()==cat:
-        for sub in raw.arguments():
-            for key,value in iterraw(sub,mapping,cat):
-                yield key,value
+def iterraw(raw:maude.Term,cat=None):
+    m = raw.symbol().getModule()
+    if raw.symbol()!=cat:
+        key,value = raw.arguments()
+        yield stringTerm2str(key),value
         return
-    elif raw.symbol()==mapping:
-        keyTerm,value = raw.arguments()
-        yield stringTerm2str(keyTerm),value
+    for field in raw.arguments():
+        print(field)
+        key,value = field.arguments()
+        yield stringTerm2str(key),value
 
-def raw2dict(raw:maude.Term,mapping,cat):
+def raw2dict(raw:maude.Term,cat=None):
     ret = {}
     rawsort = raw.getsort()
-    for key,value in iterraw(raw,mapping,cat):
+    for key,value in iterraw(raw,cat):
         if value.getsort() == rawsort:
-            value = raw2dict(value,mapping,cat)
+            value = raw2dict(value)
         else:
-            value = value.arguments()[0]
+            value,*_ = value.arguments()
         ret[key] = value
     return ret
 
     
-def raw2msg(m:maude.Module,interface,raw:maude.Term,mapping,cat):
-    # noraw = m.parseTerm('(none).Raw')
-    # rawKind = noraw.getSort().kind()
-    # cat = m.findSymbol('cat',[rawKind,rawKind],rawKind)
-    raw_dict = dict(iterraw(raw,mapping,cat))
-    print(raw_dict)
+def raw2msg(m:maude.Module,interface,raw:maude.Term):
+    noraw = m.parseTerm('(none).Raw')
+    rawKind = noraw.getSort().kind()
+    cat = m.findSymbol('cat',[rawKind,rawKind],rawKind)
+    raw_dict = dict(iterraw(raw,cat=cat))
     ret = interface()
     for key, type in ret.get_fields_and_field_types().items():
         assert key in raw_dict
         value = None
-        field = raw_dict[key]
         if type in primitives:
+            field = raw_dict[key]
             print(field.symbol())
             # assert field.symbol().getName()=='ros#'+type
             data,*_ = field.arguments()
@@ -111,13 +107,17 @@ def raw2msg(m:maude.Module,interface,raw:maude.Term,mapping,cat):
             elif primitives[type] == str:
                 value = stringTerm2str(data)
         else:
-            print('nested msg of type',type)
             interface_sub = get_interface(type)
-            value = raw2msg(m,interface_sub,field,mapping,cat)
+            value = raw2msg(m,interface_sub,raw_dict[field])
         setattr(ret,key,value)
     return ret
-def msg2raw(m:maude.Module,interface,msg,mapping,cat):
+#%%
+def msg2raw(m:maude.Module,interface,msg):
     ret = m.parseTerm('(none).Raw')
+    rawKind = ret.getSort().kind()
+    cat = m.findSymbol('cat',[rawKind,rawKind],rawKind)
+    stringKind = m.parseTerm('""').getSort().kind()
+    mapping = m.findSymbol('mapping',[stringKind,rawKind],rawKind)
 
     for key, type in interface.get_fields_and_field_types().items():
         value = None 
@@ -131,8 +131,15 @@ def msg2raw(m:maude.Module,interface,msg,mapping,cat):
                 value = str2stringTerm(m,getattr(msg,key),wrap=op)
         else:
             interface_sub = get_interface(type)
-            value = msg2raw(m,interface_sub,getattr(msg,key),mapping,cat)
+            value = msg2raw(m,interface_sub,getattr(msg,key))
         ret = cat(ret,mapping(str2stringTerm(m,key),value))
+    return ret
+
+def castObj(term:maude.Term):
+    term.reduce()
+    id,*_ = term.arguments()
+    id = id.toInt()
+    ret = ctypes.cast(id,ctypes.py_object).value
     return ret
 
 class RosMaudeNode(Node):
@@ -158,7 +165,6 @@ class RosMaudeNode(Node):
     def run(self, term:maude.Term, data:maude.HookData):
         """Receive a message or an update request"""
 
-        term.reduce()
         try:
             m = term.symbol().getModule()
             symbol = str(term.symbol())
@@ -167,9 +173,9 @@ class RosMaudeNode(Node):
                 dest, sender, datatype, topic, size = term.arguments()
                 msgtype = data.getSymbol("rosType")(datatype)
                 msgtype.reduce()
-                name = stringTerm2str(msgtype)
-                
-                interface = get_interface(name)
+                # print(msgtype)
+                interface = self.manager.get(msgtype)
+                # print(interface)
                 topic = topic.prettyPrint(0).strip('"')
                 size = size.toInt()
 
@@ -186,20 +192,8 @@ class RosMaudeNode(Node):
                 dest, sender, msg = term.arguments()
                 publisher,datatype = self.oid2publisher[dest]
 
-                typecheck = data.getSymbol('typecheck')(datatype,msg) 
-                typecheck.reduce()
-                trueTerm = data.getTerm('true')
-                trueTerm.reduce()
-                assert typecheck == trueTerm
-
-                # raw = data.getSymbol('upRaw')(msg) 
-                # raw.reduce()
-
-                print(msg)
-                mapping = data.getSymbol('mapping')
-                cat = data.getSymbol('cat')
-                msg = raw2msg(m,publisher.msg_type,msg,mapping = mapping, cat = cat)
-                print('publish',msg)
+                msg = self.manager.get(msg)
+                print('publishing',msg)
                 publisher.publish(msg)
                 reply = data.getSymbol('published')(sender,dest)
 
@@ -208,8 +202,8 @@ class RosMaudeNode(Node):
 
                 msgtype = data.getSymbol("rosType")(datatype)
                 msgtype.reduce()
-                name = stringTerm2str(msgtype)
-                interface = get_interface(name)
+                interface = self.manager.get(msgtype)
+                # print('interface',interface)
                 topic = topic.prettyPrint(0).strip('"')
                 size = size.toInt()
 
@@ -223,45 +217,35 @@ class RosMaudeNode(Node):
 
             elif symbol == 'recieve':
                 dest, sender = term.arguments()
-                _,datatype = self.oid2subscription[dest]
-                msgtype = data.getSymbol("rosType")(datatype)
-                msgtype.reduce()
-                name = stringTerm2str(msgtype)
-                interface = get_interface(name)
-                mapping = data.getSymbol('mapping')
-                cat = data.getSymbol('cat')
-
-                msg,datatype = self.oid2subscription[dest]
-                if msg != None:
-                    print(msg)
-                    d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
-                    reply = data.getSymbol('recieved')(sender,dest,d)
-                    self.oid2subscription[dest] = None,datatype
+                # _,datatype = self.oid2subscription[dest]
+                # msgtype = data.getSymbol("rosType")(datatype)
+                # msgtype.reduce()
+                # name = stringTerm2str(msgtype)
+                # interface = get_interface(name)
+                for i in range(10):
+                    msg,datatype = self.oid2subscription[dest]
+                    if msg != None:
+                        print(msg)
+                        # raw = msg2raw(m,interface,msg)
+                        # d = data.getSymbol("downRaw")(datatype,raw)
+                        self.oid2subscription[dest] = None,datatype
+                        msgId = self.manager.reg(msg)
+                        intTerm = m.parseTerm(str(msgId))
+                        d = data.getSymbol("ptr")(intTerm)
+                        reply = data.getSymbol('recieved')(sender,dest,d)
+                        break
+                    sleep(0.1)
                 else:
                     reply = term
-                # for i in range(10):
-                #     msg,datatype = self.oid2subscription[dest]
-                #     if msg != None:
-                #         print(msg)
-                #         d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
-                #         # d = data.getSymbol('downRaw')(d)
-                #         # d = data.getSymbol("downRaw")(datatype,raw)
-                #         reply = data.getSymbol('recieved')(sender,dest,d)
-                #         self.oid2subscription[dest] = None,datatype
-                #         break
-                #     sleep(0.1)
-                # else:
-                #     reply = term
             else:
                 print('Unknown message received:', term, 'with symbol:', symbol)
 
         except Exception as e:
             traceback.print_exception(e)
-        reply.reduce()
         return reply
 
 class NodeManager(maude.Hook):
-    def __init__(self):
+    def __init__(self,reg,get):
         super().__init__()
         self.inited = False
         self.executors = []
@@ -269,6 +253,8 @@ class NodeManager(maude.Hook):
 
         self.publisher_count = 0
         self.subscription_count = 0
+        self.reg = reg
+        self.get = get
 
     
     def int2Nat(self,i:int) -> maude.Term:
@@ -322,6 +308,99 @@ class NodeManager(maude.Hook):
             node.destroy_node()
 
 
+class MessageManager(maude.Hook):
+    def __init__(self,reg,get):
+        super().__init__()
+        self.reg = reg
+        self.get = get
+        
+    def run(self, term:maude.Term, data:maude.HookData):
+        print("got", term)
+        obj = self._run(term, data)
+        ptr = data.getSymbol("ptr")
+        m = term.symbol().getModule()
+        # print('reg')
+        id = self.reg(obj)
+        # print(id)
+        intTerm = m.parseTerm(str(id))
+        # print("got", term, 'rep', obj)
+        return ptr(intTerm)
+
+    def _run(self, term:maude.Term, data:maude.HookData):
+        symbol = str(term.symbol())
+        args = term.arguments()
+        reply = None
+        # print("got symbol",symbol)
+        if symbol == "msgType":
+            interface_name,*_ = args
+            # print('interface name term',interface_name)
+            interface_name = stringTerm2str(interface_name)
+            # print('interface name',interface_name)
+            reply = get_interface(interface_name)
+        elif keyTerm:=data.getTerm("key"):
+            # print('key access',keyTerm)
+            msg,_ = args
+            msg = self.get(msg)
+            key = stringTerm2str(keyTerm)
+            reply = getattr(msg,key)
+        elif keysTerm:=data.getTerm("keys"):
+            rosType=data.getTerm("rosType")
+            rosType.reduce()
+            print('msg init',rosType)
+            interface = self.get(rosType)
+            print('msg init',interface)
+            # print(stringTerm2str(keysTerm).split(' '))
+            # arg,*_ = args
+            # print(arg)
+            # arg.reduce()
+            # print(castObj(arg))
+            # print(*map(castObj,args))
+            args = dict(zip(stringTerm2str(keysTerm).split(' '),map(self.get,args)))
+            print(args)
+            reply = interface(**args)
+        print('rep',reply)
+        return reply
+
+class ValueManager(maude.Hook):
+    def __init__(self,reg,get):
+        super().__init__()
+        self.reg = reg
+        self.get = get
+
+    def run(self, term:maude.Term, data:maude.HookData):
+        symbol = str(term.symbol())
+        m = term.symbol().getModule()
+        value,*_ = term.arguments()
+        reply = None
+        if symbol == 'int':
+            value = self.get(value)
+            reply = m.parseTerm(str(value))
+        if symbol == 'float':
+            value = self.get(value)
+            reply = m.parseTerm(str(value))
+        if symbol == 'string':
+            value = self.get(value)
+            reply =  m.parseTerm(encode(value))
+        obj = self._run(term, data)
+        ptr = data.getSymbol("ptr")
+        m = term.symbol().getModule()
+        intTerm = m.parseTerm(str(self.reg(obj)))
+        reply = ptr(intTerm)
+        return reply
+
+    def _run(self, term:maude.Term, data):
+        symbol = str(term.symbol())
+        value, *_ = term.arguments()
+        if 'ros#int' in symbol:
+            return value.toInt()
+        if 'ros#float' in symbol:
+            return value.tofloat()
+        if 'ros#string' in symbol:
+            return stringTerm2str(value)
+        if 'ros#byte' in symbol:
+            return stringTerm2str(value)
+
+
 def run_logical(file):
     maude.init()
     maude.load(file)
@@ -339,12 +418,59 @@ def run_logical(file):
     steps = init.rewrite()
     print(f'rew [{steps}] results in:', init)
     
+from threading import Lock
+
+class ThreadSafeDict:
+    def __init__(self):
+        self._dict = {}
+        self._lock = Lock()
+
+    def get(self, key):
+        with self._lock:
+            return self._dict.get(key)
+
+    def set(self, key, value):
+        with self._lock:
+            self._dict[key] = value
+
+    def delete(self, key):
+        with self._lock:
+            del self._dict[key]
+
+    def reg(self,obj) -> int:
+        i = id(obj)
+        self.set(i,obj)
+        print('reged',i,obj)
+        return i
+
+    def getByid(self,id) -> int:
+        obj = self.get(id)
+        # self.delete(id)
+        # print(self._dict)
+        print('get',id,obj)
+        return obj
+
+    def getByptr(self,term:maude.Term) -> int:
+        print('get',term)
+        term.reduce()
+        print('get',term)
+
+        id,*_ = term.arguments()
+        id = id.toInt()
+        return self.getByid(id)
+
 def run_external(file):
-    #%%
     maude.init()
     rclpy.init()
-    manager = NodeManager()
+    _object_registry = ThreadSafeDict()
+    reg = _object_registry.reg 
+    get = _object_registry.getByptr
+    manager = NodeManager(reg,get)
+    valueManager = ValueManager(reg,get)
+    msgManager = MessageManager(reg,get)
     maude.connectRlHook('roshook',manager)
+    maude.connectEqHook('rosvaluehook',valueManager)
+    maude.connectEqHook('rosmsghook',msgManager)
     maude.load(file)
 
     if (m := maude.getCurrentModule()) is None:
@@ -361,7 +487,7 @@ def run_external(file):
     manager.done()
     print(f'erew [{steps}] results in:', result)
     rclpy.shutdown()
-#%%
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='run omod with ros2',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
