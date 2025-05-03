@@ -47,4 +47,47 @@ omod ROSMAUDE#MSG#STRING is
     pr ROSMAUDE#MSG#STRING#CUSTOM{ROSMAUDE#MSG#STRING#DEFAULT} .
 endom
 
+fmod 2STRING{X :: TRIV} is
+    pr ROSMAUDE#PRIMITIVE .
+    pr LEXICAL .
+    pr META-LEVEL .
+    pr STRING .
+    pr NAT .
+
+
+    vars S S' S'' : String .
+    var  Q : Qid .
+    vars QIL QIL' : QidList .
+    var MSG : X$Elt .
+    var N : Nat .
+    var T : Term .
+    var err : [X$Elt] .
+
+    op errorTerm : String -> Term .
+    op error{X} : -> [X$Elt] .
+
+    op t2str : Term -> String .
+    eq t2str(T) = printTokens(metaPrettyPrint(upModule('META-LEVEL,false), upTerm(T), none)) .
+
+    op str2t : String -> Term .
+    eq str2t(S)
+        = downTerm(getTerm(metaParse(upModule('META-LEVEL,false), tokenize(S), 'Term)), errorTerm(S)) .
+
+    op x2str : X$Elt -> String .
+    eq x2str(MSG) = t2str(upTerm(MSG)) .
+    op str2x : String [X$Elt] -> X$Elt .
+    eq str2x(S,err) = downTerm(str2t(S),err) .
+
+endfm
+
+view ROSMAUDE#MSG#TERM{X :: TRIV} from ROSMAUDE#MSG#INTERFACE#STRING to 2STRING{X} is
+    sort Elt to X$Elt .
+    op data: data:ros#string to term str2x(get(data:ros#string),error{X}) .
+    op data(E:Elt) to term ros#string(x2str(E:X$Elt)) .
+endv
+
+omod ROSMAUDE#MSG#TERM{X :: TRIV} is
+    pr ROSMAUDE#MSG#STRING#CUSTOM{ROSMAUDE#MSG#TERM{X}} .
+endom
+
 

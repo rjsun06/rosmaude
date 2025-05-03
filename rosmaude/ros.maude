@@ -1,5 +1,6 @@
 load ros_base .
 load ros_logical .
+load ros_msgs .
 
 omod ROS2 is
     pr ROS2-BASE .

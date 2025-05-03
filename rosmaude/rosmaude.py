@@ -5,7 +5,6 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
 import traceback
-import argparse
 import threading
 from ros2interface.api import utilities as ros2util
 from time import sleep
@@ -67,6 +66,22 @@ def floatTerm2float(m:maude.Module,s:maude.Term):
 def float2floatTerm(m:maude.Module,s:float,wrap=""):
     return m.parseTerm(f"{wrap}({str(s)})")
 
+import re
+def topicname(s:maude.Term):
+    print(s)
+    ret = s.prettyPrint(0).strip('"')
+    ret = ret.replace("'","")
+    ret = ret.replace(".Oid","")
+    ret = ret.replace("(","")
+    ret = ret.replace(")","")
+    ret = ret.replace("[","")
+    ret = ret.replace("]","")
+    ret = ret.replace(".","_")
+    ret = ret.replace(",","_")
+    ret = re.sub(r'[^a-zA-Z0-9_/]', '', ret)
+    print(ret)
+    return ret
+    
 def iterraw(raw:maude.Term,mapping,cat):
     if raw.symbol()==cat:
         for sub in raw.arguments():
@@ -143,44 +158,46 @@ class RosMaudeNode(Node):
         # Queue of events for the caller
         self.oid2publisher = {}
         self.oid2subscription = {}
+        self.oid2subscriptionType = {}
 
         self.manager = manager
 
     def subscription_callback(self,subscription):
         def foo(msg):
-            data,datatype = self.oid2subscription[subscription] 
-            while data is not None:
-                sleep(0.1)
-                data,datatype = self.oid2subscription[subscription] 
-            self.oid2subscription[subscription] = msg,datatype
+            self.oid2subscription[subscription].append((msg))
+            # data,datatype = self.oid2subscription[subscription] 
+            # while data is not None:
+            #     sleep(0.1)
+            #     data,datatype = self.oid2subscription[subscription] 
+            # self.oid2subscription[subscription] = msg,datatype
         return foo
 
     def run(self, term:maude.Term, data:maude.HookData):
         """Receive a message or an update request"""
 
-        term.reduce()
+        # term.reduce()
         try:
             m = term.symbol().getModule()
             symbol = str(term.symbol())
             reply = None
             if symbol == 'createPublisher':
-                dest, sender, datatype, topic, size = term.arguments()
+                dest, sender, datatype, topicT, size = term.arguments()
                 msgtype = data.getSymbol("rosType")(datatype)
                 msgtype.reduce()
                 name = stringTerm2str(msgtype)
                 
                 interface = get_interface(name)
-                topic = topic.prettyPrint(0).strip('"')
+                topic = topicname(topicT)
                 size = size.toInt()
 
                 num = self.manager.freshPublisherNum()
                 num = m.parseTerm(str(num))
                 id = data.getSymbol('publisher')(num,datatype)
 
-                publisher = self.create_publisher(interface,topic,size)
+                publisher = self.create_publisher(interface,topic,2)
                 self.oid2publisher[id] = publisher,datatype
 
-                reply = data.getSymbol('createdPublisher')(sender, dest, id)
+                reply = data.getSymbol('createdPublisher')(sender, dest, topicT, id)
 
             elif symbol == 'publish':
                 dest, sender, msg = term.arguments()
@@ -195,50 +212,70 @@ class RosMaudeNode(Node):
                 # raw = data.getSymbol('upRaw')(msg) 
                 # raw.reduce()
 
-                print(msg)
                 mapping = data.getSymbol('mapping')
                 cat = data.getSymbol('cat')
                 msg = raw2msg(m,publisher.msg_type,msg,mapping = mapping, cat = cat)
                 print('publish',msg)
+                print()
                 publisher.publish(msg)
                 reply = data.getSymbol('published')(sender,dest)
 
             elif symbol == 'createSubscription':
-                dest, sender, datatype, topic, size = term.arguments()
+                dest, sender, datatype, topicT, size = term.arguments()
 
                 msgtype = data.getSymbol("rosType")(datatype)
                 msgtype.reduce()
                 name = stringTerm2str(msgtype)
                 interface = get_interface(name)
-                topic = topic.prettyPrint(0).strip('"')
+                topic = topicname(topicT)
                 size = size.toInt()
 
                 num = self.manager.freshSubscriptionNum()
                 num = m.parseTerm(str(num))
                 id = data.getSymbol('subscription')(num,datatype)
-                self.oid2subscription[id] = None,datatype
+                self.oid2subscription[id] = []
+                self.oid2subscriptionType[id] = interface
                 callback = self.subscription_callback(id)
-                publisher = self.create_subscription(interface,topic,callback,size,callback_group=MutuallyExclusiveCallbackGroup())
+                self.create_subscription(interface,topic,callback,10,callback_group=MutuallyExclusiveCallbackGroup())
                 reply = data.getSymbol('createdSubscription')(sender, dest, id)
+                # self.oid2subscription[id] = None,datatype
+                # callback = self.subscription_callback(id)
+                # publisher = self.create_subscription(interface,topic,callback,2,callback_group=MutuallyExclusiveCallbackGroup())
+                # reply = data.getSymbol('createdSubscription')(sender, dest, id)
 
             elif symbol == 'recieve':
                 dest, sender = term.arguments()
-                _,datatype = self.oid2subscription[dest]
-                msgtype = data.getSymbol("rosType")(datatype)
-                msgtype.reduce()
-                name = stringTerm2str(msgtype)
-                interface = get_interface(name)
+                # _,datatype = self.oid2subscription[dest]
+                # msgtype = data.getSymbol("rosType")(datatype)
+                # msgtype.reduce()
+                # name = stringTerm2str(msgtype)
+                # interface = get_interface(name)
+                interface = self.oid2subscriptionType[dest]
                 mapping = data.getSymbol('mapping')
                 cat = data.getSymbol('cat')
 
-                msg,datatype = self.oid2subscription[dest]
-                if msg != None:
-                    print(msg)
+                if self.oid2subscription[dest]:
+                    msg = self.oid2subscription[dest].pop(0)
                     d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
-                    reply = data.getSymbol('recieved')(sender,dest,d)
-                    self.oid2subscription[dest] = None,datatype
+                    reply : maude.Term = data.getSymbol('recieved')(sender,dest,d)
+                    print('recieve',d.prettyPrint(0))
+                    print()
+                    print('stack',self.oid2subscription[dest])
+                    print()
                 else:
-                    reply = term
+                    delay = data.getSymbol('delayrecieve')
+                    reply = delay(dest,sender)
+
+                # msg,datatype = self.oid2subscription[dest]
+                # if msg != None:
+                #     print(msg)
+                #     d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
+                #     reply = data.getSymbol('recieved')(sender,dest,d)
+                #     self.oid2subscription[dest] = None,datatype
+                # else:
+                #     delay = data.getSymbol('delayrecieve')
+                #     reply = delay(dest,sender)
+                    # reply = None
                 # for i in range(10):
                 #     msg,datatype = self.oid2subscription[dest]
                 #     if msg != None:
@@ -257,7 +294,6 @@ class RosMaudeNode(Node):
 
         except Exception as e:
             traceback.print_exception(e)
-        reply.reduce()
         return reply
 
 class NodeManager(maude.Hook):
@@ -297,22 +333,23 @@ class NodeManager(maude.Hook):
         
     def run(self, term, data):
         """Receive a message or an update request"""
-        sleep(0.01)
-        print('got:',term)
+        # sleep(0.1)
+        # print("======================got======================")
+        # print('got:',term)
         try:
             dest, sender, *_ = term.arguments()
             sender.reduce()
             if sender not in self.nodes:
                 node = RosMaudeNode(
                     self,
-                    "maude_" + sender.prettyPrint(0)
+                    "maude_" + topicname(sender)
                     )
                 self.nodes[sender] = node
                 threading.Thread(target=self.spin,args=(node,)).start()
             reply = self.nodes[sender].run(term,data)
         except Exception as e:
             traceback.print_exception(e)
-        print("reply ",reply)
+        # print("reply ",reply)
         return reply 
 
     def done(self):
@@ -321,59 +358,14 @@ class NodeManager(maude.Hook):
         for _,node in self.nodes.items():
             node.destroy_node()
 
-
-def run_logical(file):
-    maude.init()
-    maude.load(file)
-
-    if (m := maude.getCurrentModule()) is None:
-        print('Bad module.')
-        exit(1)
-    
-    # header = f"'{str(m)}"
-    # module_up = maude.getModule('META-LEVEL').parseTerm(f"upModule({header},false)")
-    maude.load('ros_logical.maude')
-    # m = maude.downModule(module_up)
-
-    init = m.parseTerm("init <ROS2-Logical>")
-    steps = init.rewrite()
-    print(f'rew [{steps}] results in:', init)
-    
-def run_external(file):
-    #%%
-    maude.init()
+def init(m):
+    global nodeManager
     rclpy.init()
     manager = NodeManager()
-    maude.connectRlHook('roshook',manager)
-    maude.load(file)
+    m.connectRlHook('roshook',manager)
+    return manager
 
-    if (m := maude.getCurrentModule()) is None:
-        print('Bad module.')
-        exit(1)
-
-    # header = f"'{str(m)}"
-    # module_up = maude.getModule('META-LEVEL').parseTerm(f"upModule({header},false)")
-    # maude.load('ros_external.maude')
-    # m = maude.downModule(module_up)
-    
-    init = m.parseTerm("init")
-    result,steps = init.erewrite()
+def shutdown(manager):
+    global nodeManager
     manager.done()
-    print(f'erew [{steps}] results in:', result)
     rclpy.shutdown()
-#%%
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='run omod with ros2',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('filename', type=str, 
-                       help='Path to the maude file')
-    parser.add_argument('-s', '--simulation', action='store_true',
-                       help='run simulation without connecting to ros2')
-    
-    args = parser.parse_args()
-
-    file = args.filename
-    if args.simulation:
-        run_logical(file)
-    else:
-        run_external(file)

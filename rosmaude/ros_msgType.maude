@@ -1,3 +1,0 @@
-load std_msgs/msg/String
-load std_msgs/msg/Header
-load builtin_interfaces/msg/Time

@@ -32,7 +32,7 @@ omod test1 is
 
     rl [initTalker] :
         < ME : Talker | publisher : na, words : STR WORDS >
-        createdPublisher(ME, ROS2, NEW)
+        createdPublisher(ME, ROS2, any:String, NEW)
     =>
         < ME : Talker | publisher : NEW, words : WORDS >
         publish(NEW,ME,[STR])
@@ -104,7 +104,7 @@ omod test2 is
 
     rl [initTalker] :
         < ME : Talker | publisher : na, words : INT WORDS >
-        createdPublisher(ME, ROS2, NEW)
+        createdPublisher(ME, ROS2, any:String, NEW)
     =>
         < ME : Talker | publisher : NEW, words : WORDS >
         publish(NEW,ME,[stamp: (sec: ros#int32(INT), nanosec: ros#uint32(0)), frame-id: ros#string("a")])

@@ -12,7 +12,7 @@ view RawTRIV from TRIV to RAW is
     sort Elt to Raw .
 endv
 
-fmod MAYBE{X :: TRIV} is
+fmod ROSMAUDE#MAYBE{X :: TRIV} is
     sort Maybe{X} .
     subsort X$Elt < Maybe{X} .
     op null : -> Maybe{X} .
@@ -24,7 +24,7 @@ omod ROS2-Logical is
     pr LIST{Oid} * (op nil to noOid) .
     --- pr LIST{Data} * (op nil to noData) .
     pr LIST{RawTRIV} * (op nil to noRaw) .
-    pr MAYBE{RawTRIV} .
+    pr ROSMAUDE#MAYBE{RawTRIV} * (op null to nullData) .
 
     op <ROS2-Logical> : -> Object .
 
@@ -56,8 +56,8 @@ omod ROS2-Logical is
         createPublisher(ROS2,FROM,DT,NAME,SIZE)
     =>   
         < ROS2 : ROS2Portal | publisherCount : s(COUNT) >
-        < publisher(COUNT,DT) : Publisher | topic : NAME, dataType : DT, node : FROM, subscriptions : noOid, queue : noRaw, size : SIZE, subscriptionsLeft : noOid, publishingData : null >
-        createdPublisher(FROM,ROS2,publisher(COUNT,DT))
+        < publisher(COUNT,DT) : Publisher | topic : NAME, dataType : DT, node : FROM, subscriptions : noOid, queue : noRaw, size : SIZE, subscriptionsLeft : noOid, publishingData : nullData >
+        createdPublisher(FROM,ROS2,NAME,publisher(COUNT,DT))
     .
 
     rl [publish] :

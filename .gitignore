@@ -4,3 +4,5 @@ __pycache__
 maude-3.5
 ref
 get-pip.py
+case*.maude
+play*.maude

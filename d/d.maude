@@ -1,0 +1,275 @@
+load ros
+sload file
+sload socket
+sload process
+sload time
+
+view Oid from TRIV to CONFIGURATION is
+  sort Elt to Oid .
+endv
+view Msg from TRIV to CONFIGURATION is
+  sort Elt to Msg .
+endv
+fmod D#MAYBE{X :: TRIV} is
+    sort Maybe{X} .
+    subsort X$Elt < Maybe{X} .
+    op null : -> Maybe{X} .
+endfm
+view Maybe{X :: TRIV} from TRIV to D#MAYBE{X} is
+    sort Elt to Maybe{X} .
+endv
+fmod ERROR{X :: TRIV} is
+    sort Error{X} .
+    subsort X$Elt < Error{X} .
+    op error{X} : -> Error{X} .
+endfm
+
+omod MSG+ is
+    pr ERROR{Oid} * (op error{Oid} to error) .
+    pr META-LEVEL .
+
+    var f : Qid .
+    var M : Msg .
+    var TO FROM : Oid .
+    var NEW : [Oid] .
+    vars x1 x2 : Term .
+    var xrest : TermList .
+
+    op null : -> [Oid] .
+
+    op gett : Msg ~> Oid .
+    ceq gett(M) = TO 
+    if f[x1,x2,xrest] := upTerm(M) /\ TO := downTerm(x1,error) /\ FROM := downTerm(x2,error) 
+    [owise] .
+
+    op getf : Msg ~> Oid .
+    ceq getf(M) = FROM
+    if f[x1,x2,xrest] := upTerm(M) /\ TO := downTerm(x1,error) /\ FROM := downTerm(x2,error) 
+    [owise] .
+
+    sort DMsg .
+    op ping : Oid Oid -> DMsg .
+    op ack : Oid Oid -> DMsg .
+    op to_from_:_ : Oid Oid Msg -> DMsg .
+endom
+
+view DMsg from TRIV to MSG+ is
+  sort Elt to DMsg .
+endv
+
+omod NODE is
+  pr ROS2 .
+  pr ROSMAUDE#MSG#TERM{DMsg} * (op type to msg) .
+  pr META-LEVEL .
+  pr D#MAYBE{Oid} .
+  pr SET{Oid} .
+  pr MSG+ .
+  pr BOOL .
+  pr STD-STREAM .
+  pr FILE .
+  pr SOCKET .
+  pr PROCESS .
+  pr TIME .
+  class Node | $ : Configuration, publisher : Maybe{Oid}, subscription : Maybe{Oid}, ups : Set{Oid}, waiting : Set{Oid} .
+
+  op <_> : Configuration -> Object .
+  op _<_> : Oid Configuration -> Object .
+  op topic : -> String .
+  op queueSize : Oid -> Int .
+  op _in_ : Oid Configuration -> Bool .
+  op nobody : -> Oid .
+  op getOid : Object ~> Oid .
+
+
+  vars O T F : Oid .
+  var P : PublisherOid .
+  var S : SubscriptionOid .
+  var C : Cid .
+  var CONF : Configuration .
+  var MSG : Msg .
+  var OBJ : Object .
+  var UPS WAITS : Set{Oid} .
+  var STR : String .
+  var AA : AttributeSet .
+  eq < < O : C | AA > CONF > = O < < O : C | AA > CONF > .
+  eq topic = "/d" .
+  eq queueSize(O) = -1 [owise] .
+  eq O in CONF < O : C | AA > = true .
+  eq stdin in CONF <> = true .
+  eq stdout in CONF <> = true .
+  eq stderr in CONF <> = true .
+  eq fileManager in CONF <> = true .
+  eq socketManager in CONF <> = true .
+  eq socket(i:Nat) in CONF <> = true .
+  eq processManager in CONF <> = true .
+  eq process(i:Nat) in CONF <> = true .
+  eq timeManager in CONF <> = true .
+  eq O in CONF = false [owise] .
+
+
+  ops FP FS : -> Oid .
+
+  eq getOid(< O : C | AA >) = O .
+
+  rl [init] :
+    O < CONF >
+  => 
+    --- < O : Node | $ : CONF, publisher : null, subscription : null, ups : empty, waiting : empty > 
+    < O : Node | $ : CONF, publisher : FP, subscription : FS, ups : empty, waiting : empty > 
+    createSubscription(ROS2,O,msg,topic,queueSize(O)) 
+    createPublisher(ROS2,O,msg,topic,queueSize(O))
+  .
+
+  rl [inited] :
+    < O : Node | > 
+    createdSubscription(O,ROS2,S)
+    createdPublisher(O,ROS2,STR,P)
+  =>
+    < O : Node | publisher : P, subscription : S > 
+    recieve(S,O)
+  .
+
+  eq [recieved] :
+    < O : Node | $ : CONF, subscription : S, ups : UPS >
+    recieved(O,S,[to T from F : MSG])
+  =
+    if T in CONF then
+        < O : Node | $ : CONF MSG, ups : (UPS, F) > 
+    else    
+        < O : Node | $ : CONF, ups : (UPS, F) >
+    fi
+    recieve(S,O)
+  .
+
+  eq [ack] :
+    < O : Node | $ : CONF, publisher : P, subscription : S, ups : UPS >
+    recieved(O,S,[ping(T,F)])
+  =
+    < O : Node | ups : (UPS, T) >
+    if (T in CONF) then
+      publish(P,O,[ack(F,T)])
+    else none fi
+    recieve(S,O)
+  .
+
+  eq [ack] :
+    < O : Node | subscription : S, ups : UPS >
+    recieved(O,S,[ack(T,F)])
+  =
+    < O : Node | ups : (UPS, F) >
+    recieve(S,O)
+  .
+
+  crl [ping] :
+    < O : Node | $ : CONF MSG, publisher : P, ups : UPS, waiting : WAITS > 
+  =>
+    < O : Node | waiting : (WAITS, T) >
+    publish(P,O,[ping(T,F)])
+  if T := gett(MSG)
+  /\ F := getf(MSG)
+  /\ not (T in UPS)
+  /\ not (T in WAITS)
+  /\ not (T in CONF)
+  .
+
+  crl [ping] :
+    < O : Node | $ : CONF OBJ, publisher : P, subscription : S, ups : UPS > 
+  =>
+    < O : Node | ups : (UPS, T) >
+    publish(P,O,[ack(nobody,T)])
+  if T := getOid(OBJ)
+  /\ not (T in UPS)
+  .
+
+  rl [ping] :
+    < O : Node | $ : CONF, publisher : P > 
+  =>
+    < O : Node | $ : CONF >
+  .
+
+  crl [publish] :
+    < O : Node | $ : CONF MSG, publisher : P, ups : UPS > 
+  =>
+    < O : Node | $ : CONF > 
+    publish(P,O,[to T from F : MSG])
+  if T := gett(MSG)
+  /\ F := getf(MSG)
+  /\ T in UPS
+  /\ not (T in CONF)
+  .
+
+  rl [published] :
+    < O : Node | >
+    published(O,P) 
+  =>
+    < O : Node | >
+  .
+
+
+endom
+
+oth D-BASE is
+  op init : -> Configuration .
+endoth
+
+omod D{X :: D-BASE} is
+  pr NODE .
+  pr STRING .
+  sort NodeId .
+  op node : Oid -> NodeId .
+  op node : Object -> NodeId .
+  op node : Msg -> NodeId .
+
+  op node : NodeId -> Oid .
+  op init : NodeId -> Configuration .
+  
+  vars N M : NodeId .
+  vars OBJ : Object .
+  vars O T F P S : Oid .
+  vars C : Cid .
+  vars AA : AttributeSet .
+  vars CONF REST : Configuration .
+  vars MSG : Msg .
+
+  eq node(< O : C | AA >) = node(O) [owise] .
+  ceq node(MSG) = node(F) if F := getf(MSG) [owise] .
+  
+  op %init : NodeId Configuration -> Configuration .
+  eq init(N) = node(N) < %init(N,init) > .
+  eq %init(N, none) = none .
+  eq 
+    %init(N, <> CONF)
+  = 
+    <>
+    %init(N, CONF)
+  .
+  ceq 
+    %init(N, OBJ CONF)
+  =  
+    OBJ
+    %init(N, CONF)
+  if N == node(OBJ)
+  .
+
+  ceq 
+    %init(N, OBJ CONF)
+  =  
+    %init(N, CONF)
+  if N =/= node(OBJ)
+  .
+
+  ceq 
+    %init(N, MSG CONF) 
+  =  
+    MSG
+    %init(N, CONF) 
+  if N == node(MSG)
+  .
+
+  ceq 
+    %init(N, MSG CONF) 
+  =  
+    %init(N, CONF) 
+  if N =/= node(MSG)
+  .
+endom

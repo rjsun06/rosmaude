@@ -2,35 +2,51 @@ sload ros_base .
 
 fth ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINTSTAMPED is
     pr ROSMAUDE#PRIMITIVE .
-    pr ROSMAUDE#MSG#INTERFACE#* (sort Elt to pointType).
-    pr ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINT * (sort Elt to pointType).
+    inc ROSMAUDE#MSG#INTERFACE#HEADER * (sort Elt to Header) .
+    inc ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINT * (sort Elt to Point).
     sort Elt .
-    op header:_,point:_: 
-    op x : Elt -> ros#float64 .
-    op y : Elt -> ros#float64 .
-    op z : Elt -> ros#float64 .
+    op header:_,point:_ : Header Point -> Elt .
+    op header : Elt -> Header .
+    op point : Elt -> Point .
 endfth
+
+view ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#HEADER
+from ROSMAUDE#MSG#INTERFACE#HEADER
+to ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINTSTAMPED
+is
+    sort Elt to Header .
+endv
+
+view ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#GEOMETRY#POINT
+from ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINT
+to ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINTSTAMPED
+is
+    sort Elt to Point .
+endv
 
 fmod ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#BASE{X :: ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINTSTAMPED} is
     pr STRING .
     pr RAW .
+    pr ROSMAUDE#MSG#HEADER#BASE{ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#HEADER}{X} * (
+        op downRaw to downRawHeader
+    ) .
+    pr ROSMAUDE#MSG#GEOMETRY#POINT#BASE{ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#GEOMETRY#POINT}{X} * (
+        op downRaw to downRawPoint
+    ) .
     op upRaw : X$Elt -> Raw .
     op downRaw : Raw -> X$Elt .
     var R : Raw .
     var E : X$Elt .
-    var vx : ros#float64 .
-    var vy : ros#float64 .
-    var vz : ros#float64 .
+    var header : X$Header .
+    var point : X$Point .
     eq upRaw(E) = (
-        "x" |-> x(E),
-        "y" |-> y(E),
-        "z" |-> z(E)
+        ("header" |-> upRaw(header(E))),
+        ("point" |-> upRaw(point(E)))
         ) .
-    ceq downRaw(R) = x: vx,y: vy,z: vz 
+    ceq downRaw(R) = header: header, point: point
     if true
-    /\ vx := R["x"] 
-    /\ vy := R["y"]
-    /\ vz := R["z"] 
+    /\ header := downRawHeader(R["header"])
+    /\ point := downRawPoint(R["point"])
     .
 endfm
 
@@ -49,23 +65,23 @@ endom
 --- default support
 fmod ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT is
     pr ROSMAUDE#PRIMITIVE .
+    pr ROSMAUDE#MSG#HEADER#DEFAULT * (sort Elt to Header) .
+    pr ROSMAUDE#MSG#GEOMETRY#POINT#DEFAULT * (sort Elt to Point) .
     sort Elt .
-    op x:_,y:_,z:_ : ros#float64 ros#float64 ros#float64 -> Elt .
-    op x : Elt -> ros#float64 .
-    op y : Elt -> ros#float64 .
-    op z : Elt -> ros#float64 .
-    var x : ros#float64 .
-    var y : ros#float64 .
-    var z : ros#float64 .
-    eq x(x: x,y: y,z: z) = x .
-    eq y(x: x,y: y,z: z) = y .
-    eq z(x: x,y: y,z: z) = z .
+    op header:_,point:_ : Header Point -> Elt .
+    op header : Elt -> Header .
+    op point : Elt -> Point .
+    var header : Header .
+    var point : Point .
+    eq header(header: header, point: point) = header .
+    eq point(header: header, point: point) = point .
 endfm
+
 view ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT from ROSMAUDE#MSG#INTERFACE#GEOMETRY#POINTSTAMPED to ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT is
 endv
 
 omod ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED is
-    pr ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#CUSTOM{ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT#IMP} .
+    pr ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#CUSTOM{ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT} .
 endom
 
 
