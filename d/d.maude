@@ -104,6 +104,7 @@ omod NODE is
   eq processManager in CONF <> = true .
   eq process(i:Nat) in CONF <> = true .
   eq timeManager in CONF <> = true .
+  eq timer(i:Nat) in CONF <> = true .
   eq O in CONF = false [owise] .
 
 
