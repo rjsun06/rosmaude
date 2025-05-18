@@ -30,16 +30,6 @@ def get_interface(name:str):
     nst=ros2util.get_message_namespaced_type(name)
     return ros2util.import_message_from_namespaced_type(nst)
 
-def make_message_from_dict(interface,d:dict):
-    return interface(**dict)
-
-def make_dict_from_message(interface,m):
-    ret = interface.get_fields_and_field_types()
-    for key in ret:
-        ret[key]
-    m.__getattribute__(key)
-    return 
-
 def decode(s):
     if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
         s = s[1:-1]
@@ -105,9 +95,6 @@ def raw2dict(raw:maude.Term,mapping,cat):
 
     
 def raw2msg(m:maude.Module,interface,raw:maude.Term,mapping,cat):
-    # noraw = m.parseTerm('(none).Raw')
-    # rawKind = noraw.getSort().kind()
-    # cat = m.findSymbol('cat',[rawKind,rawKind],rawKind)
     raw_dict = dict(iterraw(raw,mapping,cat))
     print(raw_dict)
     ret = interface()
@@ -117,7 +104,6 @@ def raw2msg(m:maude.Module,interface,raw:maude.Term,mapping,cat):
         field = raw_dict[key]
         if type in primitives:
             print(field.symbol())
-            # assert field.symbol().getName()=='ros#'+type
             data,*_ = field.arguments()
             if primitives[type] == int:
                 value = intTerm2int(m,data)
@@ -165,17 +151,11 @@ class RosMaudeNode(Node):
     def subscription_callback(self,subscription):
         def foo(msg):
             self.oid2subscription[subscription].append((msg))
-            # data,datatype = self.oid2subscription[subscription] 
-            # while data is not None:
-            #     sleep(0.1)
-            #     data,datatype = self.oid2subscription[subscription] 
-            # self.oid2subscription[subscription] = msg,datatype
         return foo
 
     def run(self, term:maude.Term, data:maude.HookData):
         """Receive a message or an update request"""
 
-        # term.reduce()
         try:
             m = term.symbol().getModule()
             symbol = str(term.symbol())
@@ -209,9 +189,6 @@ class RosMaudeNode(Node):
                 trueTerm.reduce()
                 assert typecheck == trueTerm
 
-                # raw = data.getSymbol('upRaw')(msg) 
-                # raw.reduce()
-
                 mapping = data.getSymbol('mapping')
                 cat = data.getSymbol('cat')
                 msg = raw2msg(m,publisher.msg_type,msg,mapping = mapping, cat = cat)
@@ -238,18 +215,9 @@ class RosMaudeNode(Node):
                 callback = self.subscription_callback(id)
                 self.create_subscription(interface,topic,callback,10,callback_group=MutuallyExclusiveCallbackGroup())
                 reply = data.getSymbol('createdSubscription')(sender, dest, id)
-                # self.oid2subscription[id] = None,datatype
-                # callback = self.subscription_callback(id)
-                # publisher = self.create_subscription(interface,topic,callback,2,callback_group=MutuallyExclusiveCallbackGroup())
-                # reply = data.getSymbol('createdSubscription')(sender, dest, id)
 
             elif symbol == 'recieve':
                 dest, sender = term.arguments()
-                # _,datatype = self.oid2subscription[dest]
-                # msgtype = data.getSymbol("rosType")(datatype)
-                # msgtype.reduce()
-                # name = stringTerm2str(msgtype)
-                # interface = get_interface(name)
                 interface = self.oid2subscriptionType[dest]
                 mapping = data.getSymbol('mapping')
                 cat = data.getSymbol('cat')
@@ -266,29 +234,6 @@ class RosMaudeNode(Node):
                     delay = data.getSymbol('delayrecieve')
                     reply = delay(dest,sender)
 
-                # msg,datatype = self.oid2subscription[dest]
-                # if msg != None:
-                #     print(msg)
-                #     d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
-                #     reply = data.getSymbol('recieved')(sender,dest,d)
-                #     self.oid2subscription[dest] = None,datatype
-                # else:
-                #     delay = data.getSymbol('delayrecieve')
-                #     reply = delay(dest,sender)
-                    # reply = None
-                # for i in range(10):
-                #     msg,datatype = self.oid2subscription[dest]
-                #     if msg != None:
-                #         print(msg)
-                #         d = msg2raw(m,interface,msg,mapping=mapping,cat=cat)
-                #         # d = data.getSymbol('downRaw')(d)
-                #         # d = data.getSymbol("downRaw")(datatype,raw)
-                #         reply = data.getSymbol('recieved')(sender,dest,d)
-                #         self.oid2subscription[dest] = None,datatype
-                #         break
-                #     sleep(0.1)
-                # else:
-                #     reply = term
             else:
                 print('Unknown message received:', term, 'with symbol:', symbol)
 
@@ -321,21 +266,15 @@ class NodeManager(maude.Hook):
         self.subscription_count += 1
         tmp = maude.getModule('NAT').parseTerm(str(tmp))
         return tmp
-    
-
-
 
     def spin(self,node):
         executor = MultiThreadedExecutor(num_threads=8)
         executor.add_node(node)
         self.executors.append(executor)
-        executor.spin()  # Execute callbacks concurrently
+        executor.spin()
         
     def run(self, term, data):
         """Receive a message or an update request"""
-        # sleep(0.1)
-        # print("======================got======================")
-        # print('got:',term)
         try:
             dest, sender, *_ = term.arguments()
             sender.reduce()
@@ -349,7 +288,6 @@ class NodeManager(maude.Hook):
             reply = self.nodes[sender].run(term,data)
         except Exception as e:
             traceback.print_exception(e)
-        # print("reply ",reply)
         return reply 
 
     def done(self):

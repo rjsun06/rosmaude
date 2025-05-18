@@ -24,18 +24,21 @@ omod ROS2-Logical is
     pr LIST{Oid} * (op nil to noOid) .
     --- pr LIST{Data} * (op nil to noData) .
     pr LIST{RawTRIV} * (op nil to noRaw) .
+    pr MAP{String,List{Oid}} .
     pr ROSMAUDE#MAYBE{RawTRIV} * (op null to nullData) .
 
     op <ROS2-Logical> : -> Object .
 
-    class ROS2Portal | publisherCount : Int, subscriptionCount : Int .
-    class Publisher | topic : String, dataType : MsgType, node : Oid, subscriptions : List{Oid}, queue : List{RawTRIV}, size : Int, subscriptionsLeft : List{Oid}, publishingData : Maybe{RawTRIV} .
+    class ROS2Portal | publisherCount : Int, subscriptionCount : Int, subscriptions : Map{String,List{Oid}} .
+    class Publisher | topic : String, dataType : MsgType, node : Oid, queue : List{RawTRIV}, size : Int .
     class Subscription | topic : String, dataType : MsgType, node : Oid, queue : List{RawTRIV}, size : Int .
 
 
+    msg issue : Oid Oid String Raw -> Msg .
+    msg send : List{Oid} Oid Raw -> Msg .
     msg send : Oid Oid Raw -> Msg .
 
-    var NAME : String .
+    var TOPIC : String .
     var SIZE COUNT : Int .
     vars ME TO FROM SUB : Oid .
     var DT : MsgType .
@@ -44,28 +47,72 @@ omod ROS2-Logical is
     var B : List{RawTRIV} .
     var RB : List{RawTRIV} .
     vars SUBS SUBSLEFT : List{Oid} .
+    var TOPIC2SUBS : Map{String,List{Oid}} .
+
+    ceq send(SUB SUBS,FROM,RAW)
+    = send(SUB,FROM,RAW) send(SUBS,FROM,RAW) 
+    if SUBS =/= noOid .
+    eq send(noOid,FROM,RAW)
+    = none .
 
     rl [initialize] :
         <ROS2-Logical>
     =>
-        < ROS2 : ROS2Portal | publisherCount : 0, subscriptionCount : 0 >
+        < ROS2 : ROS2Portal | publisherCount : 0, subscriptionCount : 0, subscriptions : empty >
     .
 
     rl [createPublisher] :
         < ROS2 : ROS2Portal | publisherCount : COUNT >
-        createPublisher(ROS2,FROM,DT,NAME,SIZE)
+        createPublisher(ROS2,FROM,DT,TOPIC,SIZE)
     =>   
         < ROS2 : ROS2Portal | publisherCount : s(COUNT) >
-        < publisher(COUNT,DT) : Publisher | topic : NAME, dataType : DT, node : FROM, subscriptions : noOid, queue : noRaw, size : SIZE, subscriptionsLeft : noOid, publishingData : nullData >
-        createdPublisher(FROM,ROS2,NAME,publisher(COUNT,DT))
+        < publisher(COUNT,DT) : Publisher | topic : TOPIC, dataType : DT, node : FROM, queue : noRaw, size : SIZE >
+        createdPublisher(FROM,ROS2,TOPIC,publisher(COUNT,DT))
+    .
+
+    rl [createSubscription] :
+        < ROS2 : ROS2Portal | subscriptionCount : COUNT, subscriptions : TOPIC2SUBS >
+        createSubscription(ROS2,FROM,DT,TOPIC,SIZE)
+    =>   
+        if $hasMapping(TOPIC2SUBS,TOPIC) then
+            < ROS2 : ROS2Portal | subscriptionCount : s(COUNT), subscriptions : insert(TOPIC,(TOPIC2SUBS[TOPIC] subscription(COUNT,DT)),TOPIC2SUBS) >
+        else
+            < ROS2 : ROS2Portal | subscriptionCount : s(COUNT), subscriptions : insert(TOPIC,(subscription(COUNT,DT)),TOPIC2SUBS) >
+        fi
+        < subscription(COUNT,DT) : Subscription | topic : TOPIC, dataType : DT, node : FROM, queue : noRaw , size : SIZE >
+        createdSubscription(FROM,ROS2,subscription(COUNT,DT))
+    .
+
+    rl [issue] :
+        < ME : Publisher | topic : TOPIC, queue : RAW RB >
+    =>   
+        < ME : Publisher | topic : TOPIC, queue : RB >
+        issue(ROS2,ME,TOPIC,RAW)
+    .
+
+    rl [issue] :
+        < ROS2 : ROS2Portal | subscriptions : (TOPIC |-> SUBS, TOPIC2SUBS)>
+        issue(ROS2,FROM,TOPIC,RAW)
+    =>   
+        < ROS2 : ROS2Portal | >
+        send(SUBS,ROS2,RAW)
+    .
+
+    rl [issue] :
+        < ME : Subscription | dataType : DT, queue : B, size : SIZE >
+        send(ME,FROM,RAW)
+    =>
+        if size(B) < SIZE then
+            < ME : Subscription | queue : B RAW >
+        else
+            < ME : Subscription | queue : tail(B) RAW >
+        fi
     .
 
     rl [publish] :
-        < ROS2 : ROS2Portal | >
         < ME : Publisher | dataType : DT, node : FROM, queue : RB, size : SIZE >
         publish(ME,FROM,DATA)
     =>   
-        < ROS2 : ROS2Portal | >
         if size(RB) < SIZE then
             < ME : Publisher | dataType : DT, node : FROM, queue : RB DATA >
         else
@@ -74,53 +121,10 @@ omod ROS2-Logical is
         published(FROM,ME)
     .
 
-    rl [publish] :
-        < ROS2 : ROS2Portal | >
-        < ME : Publisher | queue : RAW RB, subscriptions : SUBS, subscriptionsLeft : noOid >
-    =>   
-        < ROS2 : ROS2Portal | >
-        < ME : Publisher | queue : RB, subscriptions : SUBS, subscriptionsLeft : SUBS, publishingData : RAW >
-    .
-
-    rl [publish] :
-        < ROS2 : ROS2Portal | >
-        < ME : Publisher | subscriptionsLeft : SUB SUBS, publishingData : RAW >
-    =>
-        < ROS2 : ROS2Portal | >
-        < ME : Publisher | subscriptionsLeft : SUBS, publishingData : RAW >
-        send(SUB,ME,RAW)
-    .
-
-    rl [createSubscription] :
-        < ROS2 : ROS2Portal | subscriptionCount : COUNT >
-        < ME : Publisher | topic : NAME, dataType : DT, subscriptions : SUBS >
-        createSubscription(ROS2,FROM,DT,NAME,SIZE)
-    =>   
-        < ROS2 : ROS2Portal | subscriptionCount : s(COUNT) >
-        < ME : Publisher | subscriptions : subscription(COUNT,DT) SUBS >
-        < subscription(COUNT,DT) : Subscription | topic : NAME, dataType : DT, node : FROM, queue : noRaw , size : SIZE >
-        createdSubscription(FROM,ROS2,subscription(COUNT,DT))
-    .
-    
-    rl [send] :
-        < ROS2 : ROS2Portal | >
-        < ME : Subscription | dataType : DT, queue : B, size : SIZE >
-        send(ME,FROM,RAW)
-    =>
-        < ROS2 : ROS2Portal | >
-        if size(B) < SIZE then
-            < ME : Subscription | queue : B RAW >
-        else
-            < ME : Subscription | queue : tail(B) RAW >
-        fi
-    .
-
     rl [recieve] :
-        < ROS2 : ROS2Portal | >
         < ME : Subscription | node : FROM, queue : DATA B >
         recieve(ME,FROM)
     =>
-        < ROS2 : ROS2Portal | >
         < ME : Subscription | node : FROM, queue : B >
         recieved(FROM,ME,DATA)
     .

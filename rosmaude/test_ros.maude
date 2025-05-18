@@ -5,9 +5,9 @@ load std_msgs/msg/Header .
 
 omod test1 is
     pr ROS2 .
+    pr ROSMAUDE#MSG#STRING * (op type to str) .
     pr STRING .
     pr LIST{String} * (op nil to noString) .
-    pr ROSMAUDE#MSG#STRING * (op type to str) .
 
     class Talker | publisher : [Oid], words : List{String} .
     class Listener | subscription : [Oid], got : List{String} .
@@ -38,6 +38,14 @@ omod test1 is
         publish(NEW,ME,[STR])
     .
 
+    rl [initListener] :
+        < ME : Listener | subscription : na >
+        createdSubscription(ME, ROS2, NEW)
+    =>
+        < ME : Listener | subscription : NEW >
+        recieve(NEW, ME)
+    .    
+
     rl [talk] :
         < ME : Talker | publisher : O, words : STR WORDS >
         published(ME,O)
@@ -53,15 +61,7 @@ omod test1 is
         < ME : Talker | publisher : O, words : noString >
     .
 
-    rl [initListener] :
-        < ME : Listener | subscription : na >
-        createdSubscription(ME, ROS2, NEW)
-    =>
-        < ME : Listener | subscription : NEW >
-        recieve(NEW, ME)
-    .    
-
-    rl [initListener] :
+    rl [listen] :
         < ME : Listener | got : WORDS >
         recieved(ME, FROM, [STR])
     =>

@@ -1,8 +1,14 @@
 __pycache__
 .venv
 .vscode
+
 maude-3.5
 ref
 get-pip.py
-case*.maude
-play*.maude
+case*
+play*
+
+rosmaude/*.maude.txt
+rosmaude/*.bak
+
+rosmaude0.1

@@ -108,7 +108,7 @@ omod NODE is
   eq O in CONF = false [owise] .
 
 
-  ops FP FS : -> Oid .
+  --- ops FP FS : -> Oid .
 
   eq getOid(< O : C | AA >) = O .
 
@@ -116,7 +116,7 @@ omod NODE is
     O < CONF >
   => 
     --- < O : Node | $ : CONF, publisher : null, subscription : null, ups : empty, waiting : empty > 
-    < O : Node | $ : CONF, publisher : FP, subscription : FS, ups : empty, waiting : empty > 
+    < O : Node | $ : CONF, publisher : null, subscription : null, ups : empty, waiting : empty > 
     createSubscription(ROS2,O,msg,topic,queueSize(O)) 
     createPublisher(ROS2,O,msg,topic,queueSize(O))
   .
