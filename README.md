@@ -1,6 +1,9 @@
 # ROS2-Maude Bridge  
 **Bridge ROS2 and Maude for formal verification and simulation of robotic systems.**  
 
+## Next Step
+Extend this demo into a package.
+
 ## Overview  
 This project enables bidirectional interaction between ROS2 nodes and Maude objects, allowing:  
 - **Real ROS2 Integration**: Maude objects to create ROS2 publishers/subscriptions via `rclpy`.  
