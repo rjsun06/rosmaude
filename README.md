@@ -28,16 +28,21 @@ This project enables bidirectional interaction between ROS2 nodes and Maude obje
    export MAUDE_LIB=$PWD/rosmaude
 3.
    ```bash
-   python3 rosmaude.py [--simulation] test_ros.maude
+   python3 run.py [--simulation] test_ros.maude
 
 
 Key Files
 - `ros_external.maude`: run rosmaude nodes on ros2, allow communication with non-maude ros nodes.
 - `ros_logical.maude`: Pure Maude simulation for rosmaude nodes only.
-- `rosmaude.py`: Bridge script implementing special hooks in `ros_external.maude` with `rclpy`.
+- `rosmaude.py`: Defines the special Hook handler.
+- `run.py`: Bridge script implementing special hooks in `ros_external.maude` with `rclpy`.
 - `test_ros.maude`: Example Maude configuration.
 
 Supported Message Types
-|Maude Type	| ROS2 Type |
+|ROS2 Type | Maude Sorts |
 | - | - |
-|String	| std_msgs.msg.String |
+| std_msgs.msg.String | ROSMAUDE#MSG#STRING#DEFAULT$Elt, STRING$String, META-LEVEL$Term |
+| std_msgs.msg.Header | ROSMAUDE#MSG#HEADER#DEFAULT$Elt |
+| geometry.msg.Point | ROSMAUDE#MSG#GEOMETRY#POINT#DEFAULT$Elt |
+| geometry.msg.Point | ROSMAUDE#MSG#GEOMETRY#POINTSTAMPED#DEFAULT$Elt |
+| builtin_interfaces.msg.Time | ROSMAUDE#MSG#BUILTIN_INTERFACES#TIME#DEFAULT |
